@@ -24,6 +24,7 @@ public:
     Exp* parseE();
     Exp* parseT();
     Exp* parseF();
+    TypeKind parseType(string);
 };
 
 #endif // PARSER_H      

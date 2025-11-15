@@ -74,6 +74,7 @@ public:
 
 class VarDec{
 public:
+    TypeKind kind;
     string type;
     list<string> vars;
     VarDec();
@@ -159,8 +160,9 @@ public:
 
 class FunDec{
 public:
+    TypeKind kind;
+    string type;
     string nombre;
-    string tipo;
     Body* cuerpo;
     vector<string> Ptipos;
     vector<string> Pnombres;

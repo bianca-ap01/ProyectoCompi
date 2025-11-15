@@ -77,23 +77,20 @@ Program* Parser::parseProgram() {
 
 VarDec* Parser::parseVarDec(){
     VarDec* vd = new VarDec();
-    match(Token::VAR);
-    match(Token::ID);
-    vd->type = previous->text;
+    vd->kind = parseType(vd->type);
     match(Token::ID);
     vd->vars.push_back(previous->text);
     while(match(Token::COMA)) {
         match(Token::ID);
         vd->vars.push_back(previous->text);
     }
+    match(Token::SEMICOL);
     return vd;
 }
 
 FunDec *Parser::parseFunDec() {
     FunDec* fd = new FunDec();
-    match(Token::FUN);
-    match(Token::ID);
-    fd->tipo = previous->text;
+    fd->kind = parseType(fd->type);
     match(Token::ID);
     fd->nombre = previous->text;
     match(Token::LPAREN);
@@ -281,6 +278,25 @@ Exp* Parser::parseF() {
             }
     }
     else {
+        throw runtime_error("Error sintáctico");
+    }
+}
+
+TypeKind Parser::parseType(string out) {
+    if (match(Token::INT)) {
+        out = "int";
+        return TYPE_INT;
+    }else if (match(Token::FLOAT)) {
+        out = "float";
+        return TYPE_FLOAT;
+    }else if (match(Token::LONG)) {
+        out = "long";
+        return TYPE_LONG;
+    }else if (match(Token::UNSIGNED)) {
+        match(Token::INT);
+        out = "unsigned int";
+        return TYPE_UINT;
+    }else {
         throw runtime_error("Error sintáctico");
     }
 }
