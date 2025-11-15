@@ -37,9 +37,12 @@ public:
         ELSE,
         END,      // Fin de entrada
         VAR,
+        FALSE,
         COMA,
         TRUE,
-        FALSE
+        UNSIGNED,
+        INT,
+        FLOAT
     };
 
     // Atributos

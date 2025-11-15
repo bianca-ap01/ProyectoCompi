@@ -52,6 +52,10 @@ ostream& operator<<(ostream& outs, const Token& tok) {
         case Token::ENDFUN:    outs << "TOKEN(ENDFUN, \""    << tok.text << "\")"; break;
         case Token::RETURN:    outs << "TOKEN(RETURN, \""    << tok.text << "\")"; break;
 
+        case Token::UNSIGNED: outs << "TOKEN(UNSIGNED, \""    << tok.text << "\")"; break;
+        case Token::INT: outs << "TOKEN(INT, \""    << tok.text << "\")"; break;
+        case Token::FLOAT: outs << "TOKEN(FLOAT, \""    << tok.text << "\")"; break;
+
         case Token::END:    outs << "TOKEN(END)"; break;
     }
     return outs;
