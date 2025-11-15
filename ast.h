@@ -20,6 +20,13 @@ enum BinaryOp {
     LE_OP
 };
 
+enum TypeKind {
+    TYPE_UINT,
+    TYPE_INT,
+    TYPE_FLOAT,
+    TYPE_LONG,
+};
+
 // Clase abstracta Exp
 class Exp {
 public:

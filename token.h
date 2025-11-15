@@ -42,7 +42,8 @@ public:
         TRUE,
         UNSIGNED,
         INT,
-        FLOAT
+        FLOAT,
+        LONG,
     };
 
     // Atributos
