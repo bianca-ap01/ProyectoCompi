@@ -40,16 +40,10 @@ ostream& operator<<(ostream& outs, const Token& tok) {
         case Token::ASSIGN:    outs << "TOKEN(ASSIGN, \""    << tok.text << "\")"; break;
         case Token::IF:    outs << "TOKEN(IF, \""    << tok.text << "\")"; break;
         case Token::WHILE:    outs << "TOKEN(WHILE, \""    << tok.text << "\")"; break;
-        case Token::THEN:    outs << "TOKEN(THEN, \""    << tok.text << "\")"; break;
         case Token::DO:    outs << "TOKEN(DO, \""    << tok.text << "\")"; break;
-        case Token::ENDIF:    outs << "TOKEN(ENDIF, \""    << tok.text << "\")"; break;
-        case Token::ENDWHILE:    outs << "TOKEN(ENDWHILE, \""    << tok.text << "\")"; break;
         case Token::ELSE:    outs << "TOKEN(ELSE, \""    << tok.text << "\")"; break;
-        case Token::VAR:    outs << "TOKEN(VAR, \""    << tok.text << "\")"; break;
         case Token::COMA:    outs << "TOKEN(COMA, \""    << tok.text << "\")"; break;
 
-        case Token::FUN:    outs << "TOKEN(FUN, \""    << tok.text << "\")"; break;
-        case Token::ENDFUN:    outs << "TOKEN(ENDFUN, \""    << tok.text << "\")"; break;
         case Token::RETURN:    outs << "TOKEN(RETURN, \""    << tok.text << "\")"; break;
 
         case Token::UNSIGNED: outs << "TOKEN(UNSIGNED, \""    << tok.text << "\")"; break;
@@ -57,7 +51,16 @@ ostream& operator<<(ostream& outs, const Token& tok) {
         case Token::FLOAT: outs << "TOKEN(FLOAT, \""    << tok.text << "\")"; break;
         case Token::LONG: outs << "TOKEN(LONG, \""    << tok.text << "\")"; break;
 
-        case Token::END:    outs << "TOKEN(END)"; break;
+        case Token::AUTO: outs << "TOKEN(AUTO, \""    << tok.text << "\")"; break;
+        case Token::BACKSLASH: outs << "TOKEN(BACKSLASH, \""    << tok.text << "\")"; break;
+        case Token::COL: outs << "TOKEN(COL, \""    << tok.text << "\")"; break;
+        case Token::FALSE: outs << "TOKEN(FALSE, \""    << tok.text << "\")"; break;
+        case Token::FOR: outs << "TOKEN(FOR, \""    << tok.text << "\")"; break;
+        case Token::LBRACE: outs << "TOKEN(LBRACE, \""    << tok.text << "\")"; break;
+        case Token::MOD: outs << "TOKEN(MOD, \""    << tok.text << "\")"; break;
+        case Token::QMARK: outs << "TOKEN(QMARK, \""    << tok.text << "\")"; break;
+        case Token::RBRACE: outs << "TOKEN(RBRACE, \""    << tok.text << "\")"; break;
+        case Token::TRUE: outs << "TOKEN(TRUE, \""    << tok.text << "\")"; break;
     }
     return outs;
 }
