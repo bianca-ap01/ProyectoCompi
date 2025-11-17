@@ -57,28 +57,23 @@ Token* Scanner::nextToken() {
         else if (lexema=="print") return new Token(Token::PRINT, input, first, current - first);
         else if (lexema=="if") return new Token(Token::IF, input, first, current - first);
         else if (lexema=="while") return new Token(Token::WHILE, input, first, current - first);
-        else if (lexema=="then") return new Token(Token::THEN, input, first, current - first);
         else if (lexema=="do") return new Token(Token::DO, input, first, current - first);
-        else if (lexema=="endif") return new Token(Token::ENDIF, input, first, current - first);
-        else if (lexema=="endwhile") return new Token(Token::ENDWHILE, input, first, current - first);
         else if (lexema=="else") return new Token(Token::ELSE, input, first, current - first);
-        else if (lexema=="var") return new Token(Token::VAR, input, first, current - first);
         else if (lexema=="true") return new Token(Token::TRUE, input, first, current - first);
         else if (lexema=="false") return new Token(Token::FALSE, input, first, current - first);
-
-        else if (lexema=="fun") return new Token(Token::FUN, input, first, current - first);
-        else if (lexema=="endfun") return new Token(Token::ENDFUN, input, first, current - first);
         else if (lexema=="return") return new Token(Token::RETURN, input, first, current - first);
 
         else if (lexema=="unsigned") return new Token(Token::UNSIGNED, input, first, current - first);
         else if (lexema=="int") return new Token(Token::INT, input, first, current - first);
         else if (lexema=="float") return new Token(Token::FLOAT, input, first, current - first);
         else if (lexema=="long") return new Token(Token::LONG, input, first, current - first);
+        else if (lexema=="for") return new Token(Token::FOR, input, first, current - first);
+        else if (lexema=="auto") return new Token(Token::AUTO, input, first, current - first);
 
         else return new Token(Token::ID, input, first, current - first);
     }
     // Operadores
-    else if (strchr("+/-*();=<,", c)) {
+    else if (strchr("+/-*();=<,%{}?:\\", c)) {
         switch (c) {
             case '<': token = new Token(Token::LE,  c); break;
             case '+': token = new Token(Token::PLUS,  c); break;
@@ -99,7 +94,12 @@ Token* Scanner::nextToken() {
             case '=': token = new Token(Token::ASSIGN,c); break;
             case ';': token = new Token(Token::SEMICOL,c); break;
             case ',': token = new Token(Token::COMA,c); break;
-
+            case '%': token = new Token(Token::MOD,c); break;
+            case '{': token = new Token(Token::LBRACE,c); break;
+            case '}': token = new Token(Token::RBRACE,c); break;
+            case '\\': token = new Token(Token::BACKSLASH,c); break;
+            case ':': token = new Token(Token::COL, c); break;
+            case '?': token = new Token(Token::QMARK, c); break;
         }
         current++;
     }
