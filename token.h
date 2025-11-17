@@ -21,29 +21,30 @@ public:
         NUM,     // Número
         ERR,     // Error
         ID,      // ID
-        LE,
-        FUN,
-        ENDFUN,
-        RETURN,
-        SEMICOL,    
-        ASSIGN,
-        PRINT,
-        IF,
-        WHILE,
-        DO,
-        THEN,
-        ENDIF,
-        ENDWHILE,
-        ELSE,
-        END,      // Fin de entrada
-        VAR,
-        FALSE,
-        COMA,
-        TRUE,
-        UNSIGNED,
-        INT,
-        FLOAT,
-        LONG,
+        LE,      // <
+        RETURN,  // return
+        SEMICOL, // ;
+        ASSIGN,  // =
+        PRINT,   // print
+        IF, // if
+        WHILE, // while
+        DO, // do
+        ELSE, // else
+        FALSE, // false
+        COMA, // ,
+        TRUE, // true
+        UNSIGNED, // unsigned
+        INT, // int
+        FLOAT, // float
+        LONG, // long
+        LBRACE, //{
+        RBRACE, //}
+        FOR,  // for
+        MOD,  // %
+        BACKSLASH,
+        AUTO, // para inferencia de tipos -> auto
+        QMARK, // para ternaria -> ?
+        COL, // para ternaria -> :
     };
 
     // Atributos
