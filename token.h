@@ -25,7 +25,7 @@ public:
         RETURN,  // return
         SEMICOL, // ;
         ASSIGN,  // =
-        PRINT,   // print
+        PRINT,   // printf
         IF, // if
         WHILE, // while
         DO, // do

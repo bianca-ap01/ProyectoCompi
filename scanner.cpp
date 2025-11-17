@@ -54,7 +54,7 @@ Token* Scanner::nextToken() {
             current++;
         string lexema = input.substr(first, current - first);
         if (lexema=="sqrt") return new Token(Token::SQRT, input, first, current - first);
-        else if (lexema=="print") return new Token(Token::PRINT, input, first, current - first);
+        else if (lexema=="printf") return new Token(Token::PRINT, input, first, current - first);
         else if (lexema=="if") return new Token(Token::IF, input, first, current - first);
         else if (lexema=="while") return new Token(Token::WHILE, input, first, current - first);
         else if (lexema=="do") return new Token(Token::DO, input, first, current - first);
