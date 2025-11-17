@@ -61,6 +61,7 @@ ostream& operator<<(ostream& outs, const Token& tok) {
         case Token::QMARK: outs << "TOKEN(QMARK, \""    << tok.text << "\")"; break;
         case Token::RBRACE: outs << "TOKEN(RBRACE, \""    << tok.text << "\")"; break;
         case Token::TRUE: outs << "TOKEN(TRUE, \""    << tok.text << "\")"; break;
+        case Token::HASHTAG: outs << "TOKEN(HASHTAG, \""    << tok.text << "\")"; break;
     }
     return outs;
 }

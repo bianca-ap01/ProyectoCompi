@@ -45,6 +45,7 @@ public:
         AUTO, // para inferencia de tipos -> auto
         QMARK, // para ternaria -> ?
         COL, // para ternaria -> :
+        HASHTAG, // #
     };
 
     // Atributos
