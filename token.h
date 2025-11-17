@@ -46,6 +46,7 @@ public:
         QMARK, // para ternaria -> ?
         COL, // para ternaria -> :
         HASHTAG, // #
+        DOT, // .
     };
 
     // Atributos
