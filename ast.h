@@ -113,6 +113,18 @@ public:
     ~WhileStm(){};
 };
 
+class ForStm: public Stm {
+public:
+    Stm*  init;      // sentencia de inicialización (ej. i = 0;)
+    Exp*  condition; // condición del for (ej. i < 10)
+    Stm*  step;      // sentencia de incremento (ej. i = i + 1;)
+    Body* b;         // cuerpo del for
+
+    ForStm(Stm* init, Exp* condition, Stm* step, Body* b);
+    int accept(Visitor* visitor) override;
+    ~ForStm() {};
+};
+
 class AssignStm: public Stm {
 public:
     string id;

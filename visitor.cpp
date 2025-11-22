@@ -25,6 +25,8 @@ int AssignStm::accept(Visitor* visitor) { return visitor->visit(this); }
 int IfStm::accept(Visitor* visitor)     { return visitor->visit(this); }
 int WhileStm::accept(Visitor* visitor)  { return visitor->visit(this); }
 int ReturnStm::accept(Visitor* visitor) { return visitor->visit(this); }
+int ForStm::accept(Visitor* visitor)     { return visitor->visit(this); }
+
 
 ///////////////////////////////////////////////////////////////////////////////////
 // GenCodeVisitor
@@ -215,6 +217,39 @@ int GenCodeVisitor::visit(ReturnStm* stm) {
         stm->e->accept(this);
     }
     out << " jmp .end_" << nombreFuncion << endl;
+    return 0;
+}
+
+int GenCodeVisitor::visit(ForStm* stm) {
+    // init
+    if (stm->init) {
+        stm->init->accept(this);
+    }
+
+    int label = labelcont++;
+
+    out << "for_" << label << ":" << endl;
+
+    // condición
+    if (stm->condition) {
+        stm->condition->accept(this);
+        out << " cmpq $0, %rax" << endl;
+        out << " je endfor_" << label << endl;
+    }
+
+    // cuerpo
+    if (stm->b) {
+        stm->b->accept(this);
+    }
+
+    // paso
+    if (stm->step) {
+        stm->step->accept(this);
+    }
+
+    out << " jmp for_" << label << endl;
+    out << "endfor_" << label << ":" << endl;
+
     return 0;
 }
 

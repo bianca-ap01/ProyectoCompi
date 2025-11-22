@@ -68,6 +68,10 @@ WhileStm::WhileStm(Exp* c, Body* body)
 
 // destructor inline vacío en el .h
 
+// ------------------ ForStm ------------------
+ForStm::ForStm(Stm* i, Exp* c, Stm* s, Body* body)
+    : init(i), condition(c), step(s), b(body) {}
+
 // ------------------ ReturnStm ------------------
 ReturnStm::ReturnStm() : e(nullptr) {}
 

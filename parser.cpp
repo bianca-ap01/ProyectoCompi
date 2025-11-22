@@ -285,7 +285,6 @@ Body* Parser::parseBody() {
             VarDec* vd = parseTypedVariableDeclaration();
             body->declarations.push_back(vd);
         } else if (check(Token::FOR)) {
-            // desazucar for(...) dentro de este bloque
             parseForIntoBody(body);
         } else {
             Stm* s = parseStatement();
@@ -302,14 +301,6 @@ Body* Parser::parseBody() {
     return body;
 }
 
-// Desazucar for (int i = 0; i < 10; i++) { ... }
-// a:
-// int i;
-// i = 0;
-// while (i < 10) {
-//   ...
-//   i = i + 1;
-// }
 void Parser::parseForIntoBody(Body* body) {
     // current == FOR
     match(Token::FOR);
@@ -317,14 +308,13 @@ void Parser::parseForIntoBody(Body* body) {
         error("Se esperaba '(' después de 'for'");
     }
 
-    // 1) Inicialización: for (**int i = 0;** i < 10; i++)
+    // 1) Inicialización: for (int i = expr; ...; ...)
     if (!isTypeStart()) {
         error("Por ahora solo se soporta 'for' con inicialización 'int id = expr;'");
     }
 
     std::string itype;
     TypeKind ikind = parseTypeSpec(itype);
-    (void)ikind; // no lo usamos más allá del tipo lógico
 
     if (!match(Token::ID)) {
         error("Se esperaba identificador en la inicialización del for");
@@ -340,7 +330,7 @@ void Parser::parseForIntoBody(Body* body) {
         error("Se esperaba ';' después de la inicialización del for");
     }
 
-    // Añadimos 'int i;' a las declaraciones del bloque
+    // Añadimos 'int i;' a las declaraciones del bloque (para reservar espacio)
     VarDec* vd = new VarDec();
     vd->kind = ikind;
     vd->type = itype;
@@ -348,10 +338,10 @@ void Parser::parseForIntoBody(Body* body) {
     vd->initializers.push_back(nullptr);
     body->declarations.push_back(vd);
 
-    // Añadimos 'i = 0;' como sentencia al principio
-    body->StmList.push_back(new AssignStm(varName, initExp));
+    // Sentencia de inicialización (no la metemos directo al Body, la guardamos en el ForStm)
+    Stm* initStm = new AssignStm(varName, initExp);
 
-    // 2) Condición: for (int i = 0; **i < 10;** i++)
+    // 2) Condición: for (int i = ...; i < expr; ...)
     if (!match(Token::ID)) {
         error("Se esperaba identificador en la condición del for");
     }
@@ -367,7 +357,7 @@ void Parser::parseForIntoBody(Body* body) {
         error("Se esperaba ';' después de la condición del for");
     }
 
-    // 3) Paso: for (...; ...; **i++**)
+    // 3) Paso: for (...; ...; i++)
     if (!match(Token::ID)) {
         error("Se esperaba identificador en el incremento del for");
     }
@@ -391,19 +381,19 @@ void Parser::parseForIntoBody(Body* body) {
         if (only) loopBody->StmList.push_back(only);
     }
 
-    // Añadimos 'i = i + 1;' al final del cuerpo del while
+    // Construimos la sentencia de paso: i = i + 1;
     Exp* stepLeft = new IdExp(stepVar);
     Exp* one      = new NumberExp(1);
     Exp* plusExpr = new BinaryExp(stepLeft, one, PLUS_OP);
-    loopBody->StmList.push_back(new AssignStm(stepVar, plusExpr));
+    Stm* stepStm  = new AssignStm(stepVar, plusExpr);
 
-    // Condición del while: i < 10  => BinaryExp(IdExp(condVar), condRight, LE_OP)
+    // Condición del for: i < expr  => BinaryExp(IdExp(condVar), condRight, LE_OP)
     Exp* condLeft = new IdExp(condVar);
     Exp* condExpr = new BinaryExp(condLeft, condRight, LE_OP);
 
-    // Creamos el while y lo agregamos como sentencia
-    WhileStm* w = new WhileStm(condExpr, loopBody);
-    body->StmList.push_back(w);
+    // Creamos el nodo ForStm y lo agregamos como sentencia del bloque
+    ForStm* f = new ForStm(initStm, condExpr, stepStm, loopBody);
+    body->StmList.push_back(f);
 }
 
 // =============================
@@ -546,7 +536,30 @@ Stm* Parser::parseAssignOrExprStatement() {
 // =============================
 
 Exp* Parser::parseExpression() {
-    return parseComparison();
+    return parseTernary();
+}
+
+Exp* Parser::parseTernary() {
+    // condición:  lo que ya soporta comparison (<, >, +, -, *, /, etc.)
+    Exp* condition = parseComparison();
+
+    // ¿hay operador ternario?
+    if (match(Token::QMARK)) {
+        // parte "then"
+        Exp* thenExp = parseComparison();
+
+        if (!match(Token::COL)) {
+            error("Se esperaba ':' en la expresión condicional ternaria");
+        }
+
+        // parte "else"
+        Exp* elseExp = parseComparison();
+
+        return new TernaryExp(condition, thenExp, elseExp);
+    }
+
+    // si no hay '?', simplemente devolvemos la comparison
+    return condition;
 }
 
 // comparison: additive ( '<' additive | '>' additive )*

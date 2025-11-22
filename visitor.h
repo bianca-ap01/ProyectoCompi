@@ -23,6 +23,7 @@ class VarDec;
 class FcallExp;
 class ReturnStm;
 class FunDec;
+class ForStm;
 
 // Interfaz de Visitor
 class Visitor {
@@ -46,6 +47,7 @@ public:
     virtual int visit(IfStm* stm) = 0;
     virtual int visit(AssignStm* stm) = 0;
     virtual int visit(ReturnStm* r) = 0;
+    virtual int visit(ForStm* stm) = 0;
 };
 
 
@@ -85,6 +87,7 @@ public:
     int visit(WhileStm* stm) override;
     int visit(IfStm* stm) override;
     int visit(ReturnStm* r) override;
+    int visit(ForStm* stm) override;
 };
 
 #endif // VISITOR_H

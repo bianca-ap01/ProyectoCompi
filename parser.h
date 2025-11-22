@@ -34,7 +34,7 @@ private:
 
     // Bloques / cuerpos
     Body*    parseBody();
-    void     parseForIntoBody(Body* body);    // desazucar for(...) a while + asignaciones
+    void     parseForIntoBody(Body* body);
 
     // Sentencias
     Stm*     parseStatement();
@@ -46,6 +46,7 @@ private:
 
     // Expresiones
     Exp*     parseExpression();
+    Exp*     parseTernary();
     Exp*     parseComparison();
     Exp*     parseAdditive();
     Exp*     parseTerm();
