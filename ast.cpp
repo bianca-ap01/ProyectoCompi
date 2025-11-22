@@ -13,7 +13,7 @@ string Exp::binopToChar(BinaryOp op) {
         case MUL_OP:   return "*";
         case DIV_OP:   return "/";
         case POW_OP:   return "**";
-        case LE_OP:   return "<";
+        case LE_OP:    return "<";
         default:       return "?";
     }
 }
@@ -22,57 +22,113 @@ string Exp::binopToChar(BinaryOp op) {
 BinaryExp::BinaryExp(Exp* l, Exp* r, BinaryOp o)
     : left(l), right(r), op(o) {}
 
-    
 BinaryExp::~BinaryExp() {
     delete left;
     delete right;
 }
-
-
 
 // ------------------ NumberExp ------------------
 NumberExp::NumberExp(int v) : value(v) {}
 
 NumberExp::~NumberExp() {}
 
-
-// ------------------idExp ------------------
-IdExp::IdExp(string v) : value(v) {}
+// ------------------ IdExp ------------------
+IdExp::IdExp(string v) : value(std::move(v)) {}
 
 IdExp::~IdExp() {}
 
+// ------------------ Stm base ------------------
+Stm::~Stm() {}
 
-Stm::~Stm(){}
+// ------------------ PrintStm ------------------
+PrintStm::PrintStm(Exp* expresion)
+    : e(expresion) {}
 
-PrintStm::~PrintStm(){}
-
-AssignStm::~AssignStm(){}
-
-IfStm::IfStm(Exp* c, Body* t, Body* e): condition(c), then(t), els(e) {}
-
-WhileStm::WhileStm(Exp* c, Body* t): condition(c), b(t) {}
-
-
-PrintStm::PrintStm(Exp* expresion){
-    e=expresion;
+PrintStm::~PrintStm() {
+    delete e;
 }
 
-AssignStm::AssignStm(string variable,Exp* expresion){
-    id = variable;
-    e = expresion;
+// ------------------ AssignStm ------------------
+AssignStm::AssignStm(string variable, Exp* expresion)
+    : id(std::move(variable)), e(expresion) {}
+
+AssignStm::~AssignStm() {
+    delete e;
 }
 
+// ------------------ IfStm ------------------
+IfStm::IfStm(Exp* c, Body* t, Body* e)
+    : condition(c), then(t), els(e) {}
 
+// destructor inline vacío en el .h
 
+// ------------------ WhileStm ------------------
+WhileStm::WhileStm(Exp* c, Body* body)
+    : condition(c), b(body) {}
+
+// destructor inline vacío en el .h
+
+// ------------------ ReturnStm ------------------
+ReturnStm::ReturnStm() : e(nullptr) {}
+
+ReturnStm::ReturnStm(Exp* exp) : e(exp) {}
+
+// destructor inline vacío en el .h
+
+// ------------------ FcallExp ------------------
+FcallExp::FcallExp() {}
+
+FcallExp::FcallExp(const string& n, const vector<Exp*>& args)
+    : nombre(n), argumentos(args) {}
+
+// destructor inline vacío en el .h
+
+// ------------------ TernaryExp ------------------
+TernaryExp::TernaryExp(Exp* c, Exp* t, Exp* e)
+    : condition(c), thenExp(t), elseExp(e) {}
+
+// destructor inline vacío en el .h
+
+// ------------------ VarDec ------------------
 VarDec::VarDec() {}
 
-VarDec::~VarDec() {}
-
-Body::Body(){
-    declarations=list<VarDec*>();
-    StmList=list<Stm*>();
+VarDec::~VarDec() {
+    for (Exp* init : initializers) {
+        delete init;
+    }
 }
 
-Body::~Body(){}
+// ------------------ Body ------------------
+Body::Body() {
+    declarations = list<VarDec*>();
+    StmList      = list<Stm*>();
+}
 
+Body::~Body() {
+    for (Stm* s : StmList) {
+        delete s;
+    }
+    for (VarDec* v : declarations) {
+        delete v;
+    }
+}
 
+// ------------------ FunDec ------------------
+FunDec::FunDec()
+    : kind(TYPE_INT), type("int"), nombre(""), cuerpo(nullptr) {}
+
+FunDec::~FunDec() {
+    delete cuerpo;
+}
+
+// ------------------ Program ------------------
+Program::Program() {}
+
+Program::~Program() {
+    for (VarDec* v : vdlist) {
+        delete v;
+    }
+    for (FunDec* f : fdlist) {
+        delete f;
+    }
+}

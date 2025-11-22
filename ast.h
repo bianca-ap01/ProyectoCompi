@@ -5,16 +5,17 @@
 #include <list>
 #include <ostream>
 #include <vector>
+
 using namespace std;
 
 class Visitor;
 class VarDec;
 
 // Operadores binarios soportados
-enum BinaryOp { 
-    PLUS_OP, 
-    MINUS_OP, 
-    MUL_OP, 
+enum BinaryOp {
+    PLUS_OP,
+    MINUS_OP,
+    MUL_OP,
     DIV_OP,
     POW_OP,
     LE_OP
@@ -25,6 +26,7 @@ enum TypeKind {
     TYPE_INT,
     TYPE_FLOAT,
     TYPE_LONG,
+    TYPE_AUTO,
 };
 
 // Clase abstracta Exp
@@ -41,30 +43,28 @@ public:
     Exp* left;
     Exp* right;
     BinaryOp op;
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
     BinaryExp(Exp* l, Exp* r, BinaryOp op);
     ~BinaryExp();
-
 };
 
 // Expresión numérica
 class NumberExp : public Exp {
 public:
     int value;
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
     NumberExp(int v);
     ~NumberExp();
 };
 
-// Expresión numérica
+// Expresión de identificador
 class IdExp : public Exp {
 public:
     string value;
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
     IdExp(string v);
     ~IdExp();
 };
-
 
 class Stm{
 public:
@@ -77,11 +77,11 @@ public:
     TypeKind kind;
     string type;
     list<string> vars;
+    vector<Exp*> initializers; // opcional: para soportar int x = 1;
     VarDec();
     int accept(Visitor* visitor);
     ~VarDec();
 };
-
 
 class Body{
 public:
@@ -92,16 +92,14 @@ public:
     ~Body();
 };
 
-
-
-
 class IfStm: public Stm {
 public:
     Exp* condition;
     Body* then;
-    Body* els;
+    Body* els; // puede ser nullptr
+
     IfStm(Exp* condition, Body* then, Body* els);
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
     ~IfStm(){};
 };
 
@@ -109,54 +107,51 @@ class WhileStm: public Stm {
 public:
     Exp* condition;
     Body* b;
+
     WhileStm(Exp* condition, Body* b);
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
     ~WhileStm(){};
 };
-
-
 
 class AssignStm: public Stm {
 public:
     string id;
     Exp* e;
+
     AssignStm(string, Exp*);
     ~AssignStm();
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
 };
 
 class PrintStm: public Stm {
 public:
     Exp* e;
+
     PrintStm(Exp*);
     ~PrintStm();
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
 };
-
-
-
-
-
 
 class ReturnStm: public Stm {
 public:
-    Exp* e;
-    ReturnStm(){};
+    Exp* e; // puede ser nullptr
+
+    ReturnStm();
+    ReturnStm(Exp* e);
     ~ReturnStm(){};
-    int accept(Visitor* visitor);
+    int accept(Visitor* visitor) override;
 };
 
 class FcallExp: public Exp {
 public:
     string nombre;
     vector<Exp*> argumentos;
-    int accept(Visitor* visitor);
-    FcallExp(){};
+
+    int accept(Visitor* visitor) override;
+    FcallExp();
+    FcallExp(const string& nombre, const vector<Exp*>& args);
     ~FcallExp(){};
 };
-
-
-
 
 class FunDec{
 public:
@@ -166,20 +161,31 @@ public:
     Body* cuerpo;
     vector<string> Ptipos;
     vector<string> Pnombres;
+
     int accept(Visitor* visitor);
-    FunDec(){};
-    ~FunDec(){};
+    FunDec();
+    ~FunDec();
 };
 
 class Program{
 public:
     list<VarDec*> vdlist;
     list<FunDec*> fdlist;
-    Program(){};
-    ~Program(){};
+
+    Program();
+    ~Program();
     int accept(Visitor* visitor);
 };
 
+class TernaryExp : public Exp {
+public:
+    Exp* condition;
+    Exp* thenExp;
+    Exp* elseExp;
 
+    TernaryExp(Exp* condition, Exp* thenExp, Exp* elseExp);
+    int accept(Visitor* visitor) override;
+    ~TernaryExp(){};
+};
 
 #endif // AST_H

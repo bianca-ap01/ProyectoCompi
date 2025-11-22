@@ -3,27 +3,20 @@
 
 #include <string>
 #include "token.h"
-using namespace std;
 
 class Scanner {
 private:
-    string input;
+    std::string input;
     int first;
     int current;
 
 public:
-    // Constructor
     Scanner(const char* in_s);
-
-    // Retorna el siguiente token
     Token* nextToken();
-
-    // Destructor
     ~Scanner();
-
 };
 
-// Ejecutar scanner
-int ejecutar_scanner(Scanner* scanner,const string& InputFile);
+// Ejecutar scanner (opcional, para depurar)
+int ejecutar_scanner(Scanner* scanner, const std::string& inputFile);
 
 #endif // SCANNER_H

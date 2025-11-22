@@ -4,63 +4,66 @@
 #include <string>
 #include <ostream>
 
-using namespace std;
-
 class Token {
 public:
     // Tipos de token
     enum Type {
-        PLUS,    // +
-        MINUS,   // -
-        MUL,     // *
-        DIV,     // /
-        POW,     // **
-        LPAREN,  // (
-        RPAREN,  // )
-        SQRT,    // sqrt
-        NUM,     // Número
-        ERR,     // Error
-        ID,      // ID
-        LE,      // <
-        RETURN,  // return
-        SEMICOL, // ;
-        ASSIGN,  // =
-        PRINT,   // printf
-        IF, // if
-        WHILE, // while
-        DO, // do
-        ELSE, // else
-        FALSE, // false
-        COMA, // ,
-        TRUE, // true
-        UNSIGNED, // unsigned
-        INT, // int
-        FLOAT, // float
-        LONG, // long
-        LBRACE, //{
-        RBRACE, //}
-        FOR,  // for
-        MOD,  // %
-        BACKSLASH,
-        AUTO, // para inferencia de tipos -> auto
-        QMARK, // para ternaria -> ?
-        COL, // para ternaria -> :
-        HASHTAG, // #
-        DOT, // .
+        PLUS,       // +
+        MINUS,      // -
+        MUL,        // *
+        DIV,        // /
+        POW,        // **
+        MOD,        // %
+        LPAREN,     // (
+        RPAREN,     // )
+        LBRACE,     // {
+        RBRACE,     // }
+        SEMICOL,    // ;
+        COMA,       // ,
+        LE,         // <
+        GT,         // >
+        ASSIGN,     // =
+        QMARK,      // ?
+        COL,        // :
+        BACKSLASH,  // '\'
+
+        // Palabras clave
+        RETURN,     // return
+        IF,         // if
+        ELSE,       // else
+        WHILE,      // while
+        FOR,        // for
+        DO,         // do
+        PRINT,      // printf
+        TRUE,       // true
+        FALSE,      // false
+        UNSIGNED,   // unsigned
+        INT,        // int
+        FLOAT,      // float
+        LONG,       // long
+        AUTO,       // auto
+
+        // Literales e identificadores
+        NUM,        // número entero
+        ID,         // identificador
+        STRING,     // literal de cadena "..."
+
+        // Otros
+        HASHTAG,    // #
+        DOT,        // .
+        END,        // EOF
+        ERR         // error léxico
     };
 
-    // Atributos
     Type type;
-    string text;
+    std::string text;
 
-    // Constructores
     Token(Type type);
     Token(Type type, char c);
-    Token(Type type, const string& source, int first, int last);
+    Token(Type type, const std::string& source, int first, int last);
 
-    // Sobrecarga de operadores de salida
-    friend ostream& operator<<(ostream& outs, const Token& tok);
-    friend ostream& operator<<(ostream& outs, const Token* tok);
+    friend std::ostream& operator<<(std::ostream& outs, const Token& tok);
+    friend std::ostream& operator<<(std::ostream& outs, const Token* tok);
 };
 
 #endif // TOKEN_H

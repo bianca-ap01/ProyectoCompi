@@ -1,21 +1,40 @@
-#include<iostream>
-#include "token.h"
-#include "scanner.h"
-#include "ast.h"
 #include "parser.h"
+#include <iostream>
+#include <stdexcept>
 
 using namespace std;
 
 // =============================
-// Métodos de la clase Parser
+// Constructor y helpers
 // =============================
 
-Parser::Parser(Scanner* sc) : scanner(sc) {
-    previous = nullptr;
+Parser::Parser(Scanner* sc) : scanner(sc), current(nullptr), previous(nullptr) {
     current = scanner->nextToken();
     if (current->type == Token::ERR) {
-        throw runtime_error("Error léxico");
+        throw runtime_error("Error léxico al iniciar el parser");
     }
+}
+
+bool Parser::isAtEnd() const {
+    return current->type == Token::END;
+}
+
+bool Parser::check(Token::Type ttype) const {
+    if (isAtEnd()) return false;
+    return current->type == ttype;
+}
+
+bool Parser::advance() {
+    if (!isAtEnd()) {
+        Token* temp = current;
+        previous = temp;
+        current = scanner->nextToken();
+        if (current->type == Token::ERR) {
+            throw runtime_error("Error léxico");
+        }
+        return true;
+    }
+    return false;
 }
 
 bool Parser::match(Token::Type ttype) {
@@ -26,277 +45,491 @@ bool Parser::match(Token::Type ttype) {
     return false;
 }
 
-bool Parser::check(Token::Type ttype) {
-    if (isAtEnd()) return false;
-    return current->type == ttype;
+void Parser::error(const std::string& msg) {
+    cerr << "Error de parseo: " << msg << endl;
+    throw runtime_error(msg);
 }
-
-bool Parser::advance() {
-    if (!isAtEnd()) {
-        Token* temp = current;
-        if (previous) delete previous;
-        current = scanner->nextToken();
-        previous = temp;
-
-        if (check(Token::ERR)) {
-            throw runtime_error("Error lexico");
-        }
-        return true;
-    }
-    return false;
-}
-
-bool Parser::isAtEnd() {
-    return (current->type == Token::END);
-}
-
 
 // =============================
-// Reglas gramaticales
+// Utilidades de tipos
+// =============================
+
+bool Parser::isTypeStart() const {
+    return check(Token::INT) || check(Token::UNSIGNED) ||
+           check(Token::LONG) || check(Token::FLOAT);
+}
+
+TypeKind Parser::parseTypeSpec(std::string& outType) {
+    if (match(Token::INT)) {
+        outType = "int";
+        return TYPE_INT;
+    } else if (match(Token::FLOAT)) {
+        outType = "float";
+        return TYPE_FLOAT;
+    } else if (match(Token::LONG)) {
+        // Permitimos tanto "long" como "long int"
+        if (match(Token::INT)) {
+            outType = "long int";
+        } else {
+            outType = "long"; // lo tratamos igual que long int
+        }
+        return TYPE_LONG;
+    } else if (match(Token::UNSIGNED)) {
+        if (!match(Token::INT)) {
+            error("Se esperaba 'int' después de 'unsigned'");
+        }
+        outType = "unsigned int";
+        return TYPE_UINT;
+    } else {
+        error("Se esperaba un tipo (int, unsigned int, long, long int, float)");
+        return TYPE_INT; // unreachable
+    }
+}
+
+// =============================
+// program -> (declaración)* EOF
 // =============================
 
 Program* Parser::parseProgram() {
-    Program* p = new Program();
-    if(check(Token::VAR)) {
-        p->vdlist.push_back(parseVarDec());
-        while(match(Token::SEMICOL)) {
-            if(check(Token::VAR)) {
-                p->vdlist.push_back(parseVarDec());
-            }
-        }
+    Program* prog = new Program();
+
+    while (!isAtEnd()) {
+        if (check(Token::END)) break;
+        parseTopLevelDeclaration(prog);
     }
-    if(check(Token::FUN)) {
-        p->fdlist.push_back(parseFunDec());
-        while(check(Token::FUN)){
-                p->fdlist.push_back(parseFunDec());
-            }
-        }
+
     cout << "Parser exitoso" << endl;
-    return p;
+    return prog;
 }
 
-VarDec* Parser::parseVarDec(){
-    VarDec* vd = new VarDec();
-    vd->kind = parseType(vd->type);
-    match(Token::ID);
-    vd->vars.push_back(previous->text);
-    while(match(Token::COMA)) {
-        match(Token::ID);
-        vd->vars.push_back(previous->text);
+// =============================
+// Declaraciones de nivel superior
+// =============================
+
+void Parser::parseTopLevelDeclaration(Program* prog) {
+    if (check(Token::AUTO)) {
+        VarDec* vd = parseAutoDeclaration();
+        prog->vdlist.push_back(vd);
+        return;
     }
-    match(Token::SEMICOL);
+
+    if (!isTypeStart()) {
+        error("Se esperaba 'auto' o un tipo al inicio de una declaración");
+    }
+
+    string typeName;
+    TypeKind kind = parseTypeSpec(typeName);
+
+    if (!match(Token::ID)) {
+        error("Se esperaba identificador después del tipo");
+    }
+    string name = previous->text;
+
+    if (check(Token::LPAREN)) {
+        // Declaración de función
+        FunDec* fd = new FunDec();
+        fd->kind = kind;
+        fd->type = typeName;
+        fd->nombre = name;
+
+        match(Token::LPAREN);
+        if (!check(Token::RPAREN)) {
+            parseParamList(fd);
+        }
+        if (!match(Token::RPAREN)) {
+            error("Se esperaba ')' al final de la lista de parámetros");
+        }
+
+        fd->cuerpo = parseBody();
+        prog->fdlist.push_back(fd);
+    } else {
+        // Declaración de variable global: ya consumimos el primer ID
+        VarDec* vd = new VarDec();
+        vd->kind = kind;
+        vd->type = typeName;
+        vd->vars.push_back(name);
+        vd->initializers.push_back(nullptr);
+
+        // Más variables en la misma línea
+        while (match(Token::COMA)) {
+            if (!match(Token::ID)) {
+                error("Se esperaba identificador después de ',' en una declaración global");
+            }
+            vd->vars.push_back(previous->text);
+            vd->initializers.push_back(nullptr);
+        }
+
+        if (!match(Token::SEMICOL)) {
+            error("Se esperaba ';' al final de la declaración global");
+        }
+
+        prog->vdlist.push_back(vd);
+    }
+}
+
+// =============================
+// Parámetros de función
+// =============================
+
+void Parser::parseParamList(FunDec* fd) {
+    while (true) {
+        std::string ptype;
+        TypeKind pkind = parseTypeSpec(ptype);
+        (void)pkind; // por ahora no usamos el TypeKind de parámetros
+
+        if (!match(Token::ID)) {
+            error("Se esperaba nombre de parámetro");
+        }
+
+        fd->Ptipos.push_back(ptype);
+        fd->Pnombres.push_back(previous->text);
+
+        if (!match(Token::COMA)) break;
+    }
+}
+
+// =============================
+// Declaraciones de variables locales
+// =============================
+
+VarDec* Parser::parseTypedVariableDeclaration() {
+    VarDec* vd = new VarDec();
+    vd->kind = parseTypeSpec(vd->type);
+
+    // primer identificador
+    if (!match(Token::ID)) {
+        error("Se esperaba identificador en declaración de variable");
+    }
+    vd->vars.push_back(previous->text);
+
+    if (match(Token::ASSIGN)) {
+        vd->initializers.push_back(parseExpression());
+    } else {
+        vd->initializers.push_back(nullptr);
+    }
+
+    // Declaradores adicionales
+    while (match(Token::COMA)) {
+        if (!match(Token::ID)) {
+            error("Se esperaba identificador después de ',' en declaración de variable");
+        }
+        vd->vars.push_back(previous->text);
+        if (match(Token::ASSIGN)) {
+            vd->initializers.push_back(parseExpression());
+        } else {
+            vd->initializers.push_back(nullptr);
+        }
+    }
+
+    if (!match(Token::SEMICOL)) {
+        error("Se esperaba ';' al final de la declaración de variable");
+    }
+
     return vd;
 }
 
-FunDec *Parser::parseFunDec() {
-    FunDec* fd = new FunDec();
-    fd->kind = parseType(fd->type);
-    match(Token::ID);
-    fd->nombre = previous->text;
-    match(Token::LPAREN);
-    if(check(Token::ID)) {
-        while(match(Token::ID)) {
-            fd->Ptipos.push_back(previous->text);
-            match(Token::ID);
-            fd->Pnombres.push_back(previous->text);
-            match(Token::COMA);
-        }
+VarDec* Parser::parseAutoDeclaration() {
+    VarDec* vd = new VarDec();
+    vd->kind = TYPE_AUTO;
+    vd->type = "auto";
+
+    if (!match(Token::AUTO)) {
+        error("Se esperaba 'auto'");
     }
-    match(Token::RPAREN);
-    fd->cuerpo = parseBody();
-    match(Token::ENDFUN);
-    return fd;
+
+    // auto x = expr, y = expr2;
+    if (!match(Token::ID)) {
+        error("Se esperaba identificador después de 'auto'");
+    }
+    vd->vars.push_back(previous->text);
+
+    if (!match(Token::ASSIGN)) {
+        error("Se esperaba '=' en declaración con auto");
+    }
+    vd->initializers.push_back(parseExpression());
+
+    while (match(Token::COMA)) {
+        if (!match(Token::ID)) {
+            error("Se esperaba identificador después de ',' en declaración con auto");
+        }
+        vd->vars.push_back(previous->text);
+        if (!match(Token::ASSIGN)) {
+            error("Se esperaba '=' en declaración con auto");
+        }
+        vd->initializers.push_back(parseExpression());
+    }
+
+    if (!match(Token::SEMICOL)) {
+        error("Se esperaba ';' al final de la declaración con auto");
+    }
+
+    return vd;
 }
 
+// =============================
+// Cuerpos / bloques
+// =============================
 
+Body* Parser::parseBody() {
+    if (!match(Token::LBRACE)) {
+        error("Se esperaba '{' al inicio de un bloque");
+    }
 
-Body* Parser::parseBody(){
-    Body* b = new Body();
-    if(check(Token::VAR)) {
-        b->declarations.push_back(parseVarDec());
-        while(match(Token::SEMICOL)) {
-            if(check(Token::VAR)) {
-                b->declarations.push_back(parseVarDec());
+    Body* body = new Body();
+
+    while (!check(Token::RBRACE) && !isAtEnd()) {
+        if (check(Token::AUTO)) {
+            VarDec* vd = parseAutoDeclaration();
+            body->declarations.push_back(vd);
+        } else if (isTypeStart()) {
+            VarDec* vd = parseTypedVariableDeclaration();
+            body->declarations.push_back(vd);
+        } else {
+            Stm* s = parseStatement();
+            if (s != nullptr) {
+                body->StmList.push_back(s);
             }
         }
     }
-    b->StmList.push_back(parseStm());
-    while(match(Token::SEMICOL)) {
-        b->StmList.push_back(parseStm());
+
+    if (!match(Token::RBRACE)) {
+        error("Se esperaba '}' al final de un bloque");
     }
-    return b;
+
+    return body;
 }
 
-Stm* Parser::parseStm() {
-    Stm* a;
-    Exp* e;
-    string variable;
-    Body* tb = nullptr;
-    Body* fb = nullptr;
-    if(match(Token::ID)){
-        variable = previous->text;
-        match(Token::ASSIGN);
-        e = parseCE();
-        return new AssignStm(variable,e);
+// =============================
+// Sentencias
+// =============================
+
+Stm* Parser::parseStatement() {
+    if (check(Token::IF))    return parseIfStatement();
+    if (check(Token::WHILE)) return parseWhileStatement();
+    if (check(Token::RETURN))return parseReturnStatement();
+    if (check(Token::PRINT)) return parsePrintStatement();
+
+    // Sentencia vacía: ;
+    if (check(Token::SEMICOL)) {
+        match(Token::SEMICOL);
+        return nullptr;
     }
-    else if(match(Token::PRINT)){
-        match(Token::LPAREN);
-        e = parseCE();
-        match(Token::RPAREN);
-        return new PrintStm(e);
-    }
-    else if(match(Token::RETURN)) {
-        ReturnStm* r  = new ReturnStm();
-        match(Token::LPAREN);
-        r->e = parseCE();
-        match(Token::RPAREN);
-        return r;
-    }
-else if (match(Token::IF)) {
-        e = parseCE();
-        if (!match(Token::THEN)) {
-            cout << "Error: se esperaba 'then' después de la expresión." << endl;
-            exit(1);
-        }
-        tb = parseBody();
-        if (match(Token::ELSE)) {
-            fb = parseBody();
-        }
-        if (!match(Token::ENDIF)) {
-            cout << "Error: se esperaba 'endif' al final de la declaración de if." << endl;
-            exit(1);
-        }
-        a = new IfStm(e, tb, fb);
-    }
-    else if (match(Token::WHILE)) {
-        e = parseCE();
-        if (!match(Token::DO)) {
-            cout << "Error: se esperaba 'do' después de la expresión." << endl;
-            exit(1);
-        }
-        tb = parseBody();
-        if (!match(Token::ENDWHILE)) {
-            cout << "Error: se esperaba 'endwhile' al final de la declaración." << endl;
-            exit(1);
-        }
-        a = new WhileStm(e, tb);
-    }
-    else{
-        throw runtime_error("Error sintáctico");
-    }
-    return a;
+
+    // Por defecto, asumimos una sentencia de asignación tipo 'id = expr;'
+    return parseAssignOrExprStatement();
 }
 
-Exp* Parser::parseCE() {
-    Exp* l = parseBE();
-    if (match(Token::LE)) {
-        BinaryOp op = LE_OP;
-        Exp* r = parseBE();
-        l = new BinaryExp(l, r, op);
+Stm* Parser::parseIfStatement() {
+    match(Token::IF);
+    if (!match(Token::LPAREN)) {
+        error("Se esperaba '(' después de 'if'");
     }
-    return l;
+    Exp* cond = parseExpression();
+    if (!match(Token::RPAREN)) {
+        error("Se esperaba ')' después de la condición de if");
+    }
+
+    // Soportar if (cond) sentencia; y if (cond) { ... }
+    Body* thenBody;
+    if (check(Token::LBRACE)) {
+        thenBody = parseBody();
+    } else {
+        Stm* thenStm = parseStatement();
+        thenBody = new Body();
+        if (thenStm) thenBody->StmList.push_back(thenStm);
+    }
+
+    Body* elseBody = nullptr;
+    if (match(Token::ELSE)) {
+        if (check(Token::LBRACE)) {
+            elseBody = parseBody();
+        } else {
+            Stm* elseStm = parseStatement();
+            elseBody = new Body();
+            if (elseStm) elseBody->StmList.push_back(elseStm);
+        }
+    }
+
+    return new IfStm(cond, thenBody, elseBody);
 }
 
-
-Exp* Parser::parseBE() {
-    Exp* l = parseE();
-    while (match(Token::PLUS) || match(Token::MINUS)) {
-        BinaryOp op;
-        if (previous->type == Token::PLUS){
-            op = PLUS_OP;
-        }
-        else{
-            op = MINUS_OP;
-        }
-        Exp* r = parseE();
-        l = new BinaryExp(l, r, op);
+Stm* Parser::parseWhileStatement() {
+    match(Token::WHILE);
+    if (!match(Token::LPAREN)) {
+        error("Se esperaba '(' después de 'while'");
     }
-    return l;
+    Exp* cond = parseExpression();
+    if (!match(Token::RPAREN)) {
+        error("Se esperaba ')' después de la condición de while");
+    }
+
+    Body* b;
+    if (check(Token::LBRACE)) {
+        b = parseBody();
+    } else {
+        Stm* s = parseStatement();
+        b = new Body();
+        if (s) b->StmList.push_back(s);
+    }
+
+    return new WhileStm(cond, b);
 }
 
-
-Exp* Parser::parseE() {
-    Exp* l = parseT();
-    while (match(Token::MUL) || match(Token::DIV)) {
-        BinaryOp op;
-        if (previous->type == Token::MUL){
-            op = MUL_OP;
+Stm* Parser::parseReturnStatement() {
+    match(Token::RETURN);
+    if (check(Token::SEMICOL)) {
+        match(Token::SEMICOL);
+        return new ReturnStm();
+    } else {
+        Exp* e = parseExpression();
+        if (!match(Token::SEMICOL)) {
+            error("Se esperaba ';' después de return");
         }
-        else{
-            op = DIV_OP;
-        }
-        Exp* r = parseT();
-        l = new BinaryExp(l, r, op);
+        return new ReturnStm(e);
     }
-    return l;
 }
 
-
-Exp* Parser::parseT() {
-    Exp* l = parseF();
-    if (match(Token::POW)) {
-        BinaryOp op = POW_OP;
-        Exp* r = parseF();
-        l = new BinaryExp(l, r, op);
+Stm* Parser::parsePrintStatement() {
+    match(Token::PRINT);
+    if (!match(Token::LPAREN)) {
+        error("Se esperaba '(' después de printf");
     }
-    return l;
+
+    // printf("formato", expr);
+    if (check(Token::STRING)) {
+        advance(); // ignorar cadena de formato
+        if (!match(Token::COMA)) {
+            error("Se esperaba ',' después de la cadena en printf");
+        }
+    }
+
+    Exp* arg = parseExpression();
+
+    if (!match(Token::RPAREN)) {
+        error("Se esperaba ')' al final de printf");
+    }
+    if (!match(Token::SEMICOL)) {
+        error("Se esperaba ';' después de printf");
+    }
+
+    return new PrintStm(arg);
 }
 
-Exp* Parser::parseF() {
-    Exp* e;
-    string nom;
+Stm* Parser::parseAssignOrExprStatement() {
+    if (!match(Token::ID)) {
+        error("Se esperaba identificador al inicio de la sentencia");
+    }
+    std::string name = previous->text;
+
+    if (!match(Token::ASSIGN)) {
+        error("Por ahora solo se soportan sentencias de asignación tipo 'id = expr;'");
+    }
+
+    Exp* rhs = parseExpression();
+
+    if (!match(Token::SEMICOL)) {
+        error("Se esperaba ';' al final de la sentencia de asignación");
+    }
+
+    return new AssignStm(name, rhs);
+}
+
+// =============================
+// Expresiones
+// =============================
+
+Exp* Parser::parseExpression() {
+    return parseComparison();
+}
+
+// comparison: additive ( '<' additive )*
+Exp* Parser::parseComparison() {
+    Exp* left = parseAdditive();
+    while (match(Token::LE)) {
+        Exp* right = parseAdditive();
+        left = new BinaryExp(left, right, LE_OP);
+    }
+    return left;
+}
+
+Exp* Parser::parseAdditive() {
+    Exp* left = parseTerm();
+    while (true) {
+        if (match(Token::PLUS)) {
+            Exp* right = parseTerm();
+            left = new BinaryExp(left, right, PLUS_OP);
+        } else if (match(Token::MINUS)) {
+            Exp* right = parseTerm();
+            left = new BinaryExp(left, right, MINUS_OP);
+        } else {
+            break;
+        }
+    }
+    return left;
+}
+
+Exp* Parser::parseTerm() {
+    Exp* left = parseFactor();
+    while (true) {
+        if (match(Token::MUL)) {
+            Exp* right = parseFactor();
+            left = new BinaryExp(left, right, MUL_OP);
+        } else if (match(Token::DIV)) {
+            Exp* right = parseFactor();
+            left = new BinaryExp(left, right, DIV_OP);
+        } else {
+            break;
+        }
+    }
+    return left;
+}
+
+Exp* Parser::parseFactor() {
+    // Soportar unario '-'
+    if (match(Token::MINUS)) {
+        Exp* inner = parseFactor();
+        return new BinaryExp(new NumberExp(0), inner, MINUS_OP);
+    }
+
+    return parsePrimary();
+}
+
+Exp* Parser::parsePrimary() {
     if (match(Token::NUM)) {
-        return new NumberExp(stoi(previous->text));
+        int val = std::stoi(previous->text);
+        return new NumberExp(val);
     }
-    else if (match(Token::TRUE)) {
-        return new NumberExp(1);
+
+    if (match(Token::ID)) {
+        std::string name = previous->text;
+
+        // Posible llamada a función: id '(' args ')'
+        if (match(Token::LPAREN)) {
+            std::vector<Exp*> args;
+            if (!check(Token::RPAREN)) {
+                // parsear 1 o más argumentos
+                args.push_back(parseExpression());
+                while (match(Token::COMA)) {
+                    args.push_back(parseExpression());
+                }
+            }
+            if (!match(Token::RPAREN)) {
+                error("Se esperaba ')' al final de la llamada a función");
+            }
+            return new FcallExp(name, args);
+        }
+
+        return new IdExp(name);
     }
-    else if (match(Token::FALSE)) {
-        return new NumberExp(0);
-    }
-    else if (match(Token::LPAREN))
-    {
-        e = parseCE();
-        match(Token::RPAREN);
+
+    if (match(Token::LPAREN)) {
+        Exp* e = parseExpression();
+        if (!match(Token::RPAREN)) {
+            error("Se esperaba ')' después de la expresión");
+        }
         return e;
     }
-    else if (match(Token::ID)) {
-        nom = previous->text;
-        if(check(Token::LPAREN)) {
-            match(Token::LPAREN);
-            FcallExp* fcall = new FcallExp();
-            fcall->nombre = nom;
-            fcall->argumentos.push_back(parseCE());
-            while(match(Token::COMA)) {
-                fcall->argumentos.push_back(parseCE());
-            }
-            match(Token::RPAREN);
-            return fcall;
-        }
-        else {
-            return new IdExp(nom);
-            }
-    }
-    else {
-        throw runtime_error("Error sintáctico");
-    }
-}
 
-TypeKind Parser::parseType(string out) {
-    if (match(Token::INT)) {
-        out = "int";
-        return TYPE_INT;
-    }else if (match(Token::FLOAT)) {
-        out = "float";
-        return TYPE_FLOAT;
-    }else if (match(Token::LONG)) {
-        out = "long";
-        return TYPE_LONG;
-    }else if (match(Token::UNSIGNED)) {
-        match(Token::INT);
-        out = "unsigned int";
-        return TYPE_UINT;
-    }else {
-        throw runtime_error("Error sintáctico");
-    }
+    error("Expresión primaria inválida");
+    return nullptr;
 }

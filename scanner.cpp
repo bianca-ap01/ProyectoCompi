@@ -1,172 +1,154 @@
-#include <iostream>
+#include "scanner.h"
+#include "token.h"
+#include <cctype>
 #include <cstring>
 #include <fstream>
-#include "token.h"
-#include "scanner.h"
+#include <iostream>
 
-using namespace std;
+Scanner::Scanner(const char* s)
+    : input(s), first(0), current(0) {}
 
-// -----------------------------
-// Constructor
-// -----------------------------
-Scanner::Scanner(const char* s): input(s), first(0), current(0) { 
-    }
-
-// -----------------------------
-// Función auxiliar
-// -----------------------------
-
-bool is_white_space(char c) {
-    return c == ' ' || c == '\n' || c == '\r' || c == '\t';
-}
-
-// -----------------------------
-// nextToken: obtiene el siguiente token
-// -----------------------------
-
+Scanner::~Scanner() {}
 
 Token* Scanner::nextToken() {
-    Token* token;
-
-    // Saltar espacios en blanco
-    while (current < input.length() && is_white_space(input[current])) 
-        current++;
-
-    // Fin de la entrada
-    if (current >= input.length()) 
-        return new Token(Token::END);
-
-    char c = input[current];
-
-    first = current;
-
-    // Números
-    if (isdigit(c)) {
-        current++;
-        while (current < input.length() && isdigit(input[current]))
-            current++;
-        token = new Token(Token::NUM, input, first, current - first);
-    }
-    // ID
-    else if (isalpha(c)) {
-        current++;
-        while (current < input.length() && isalnum(input[current]))
-            current++;
-        string lexema = input.substr(first, current - first);
-        if (lexema=="sqrt") return new Token(Token::SQRT, input, first, current - first);
-        else if (lexema=="printf") return new Token(Token::PRINT, input, first, current - first);
-        else if (lexema=="if") return new Token(Token::IF, input, first, current - first);
-        else if (lexema=="while") return new Token(Token::WHILE, input, first, current - first);
-        else if (lexema=="do") return new Token(Token::DO, input, first, current - first);
-        else if (lexema=="else") return new Token(Token::ELSE, input, first, current - first);
-        else if (lexema=="true") return new Token(Token::TRUE, input, first, current - first);
-        else if (lexema=="false") return new Token(Token::FALSE, input, first, current - first);
-        else if (lexema=="return") return new Token(Token::RETURN, input, first, current - first);
-
-        else if (lexema=="unsigned") return new Token(Token::UNSIGNED, input, first, current - first);
-        else if (lexema=="int") return new Token(Token::INT, input, first, current - first);
-        else if (lexema=="float") return new Token(Token::FLOAT, input, first, current - first);
-        else if (lexema=="long") return new Token(Token::LONG, input, first, current - first);
-        else if (lexema=="for") return new Token(Token::FOR, input, first, current - first);
-        else if (lexema=="auto") return new Token(Token::AUTO, input, first, current - first);
-
-        else return new Token(Token::ID, input, first, current - first);
-    }
-    // Operadores
-    else if (strchr("+/-*();=<,%{}?:\\#.", c)) {
-        switch (c) {
-            case '<': token = new Token(Token::LE,  c); break;
-            case '+': token = new Token(Token::PLUS,  c); break;
-            case '-': token = new Token(Token::MINUS, c); break;
-            case '*': 
-            if (input[current+1]=='*')
-            {
-                current++;
-                token = new Token(Token::POW, input, first, current + 1 - first);
-            }
-            else{
-                token = new Token(Token::MUL,   c);
-            }
-            break;
-            case '/': token = new Token(Token::DIV,   c); break;
-            case '(': token = new Token(Token::LPAREN,c); break;
-            case ')': token = new Token(Token::RPAREN,c); break;
-            case '=': token = new Token(Token::ASSIGN,c); break;
-            case ';': token = new Token(Token::SEMICOL,c); break;
-            case ',': token = new Token(Token::COMA,c); break;
-            case '%': token = new Token(Token::MOD,c); break;
-            case '{': token = new Token(Token::LBRACE,c); break;
-            case '}': token = new Token(Token::RBRACE,c); break;
-            case '\\': token = new Token(Token::BACKSLASH,c); break;
-            case ':': token = new Token(Token::COL, c); break;
-            case '?': token = new Token(Token::QMARK, c); break;
-            case '#': token = new Token(Token::HASHTAG, c); break;
-            case '.': token = new Token(Token::DOT, c); break;
+    while (true) {
+        if (current >= static_cast<int>(input.size())) {
+            return new Token(Token::END);
         }
-        current++;
-    }
 
-    // Carácter inválido
-    else {
-        token = new Token(Token::ERR, c);
-        current++;
-    }
+        char c = input[current];
 
-    return token;
+        // Saltar espacios en blanco
+        if (std::isspace(static_cast<unsigned char>(c))) {
+            current++;
+            continue;
+        }
+
+        first = current;
+
+        // Línea de preprocesador: #include, #define, etc. -> ignorar
+        if (c == '#') {
+            current++;
+            while (current < static_cast<int>(input.size()) &&
+                   input[current] != '\n') {
+                current++;
+            }
+            if (current < static_cast<int>(input.size()) &&
+                input[current] == '\n') {
+                current++;
+            }
+            continue;
+        }
+
+        // Literales de cadena "..."
+        if (c == '"') {
+            current++; // saltar comilla de apertura
+            while (current < static_cast<int>(input.size()) &&
+                   input[current] != '"' &&
+                   input[current] != '\n') {
+                current++;
+            }
+            if (current < static_cast<int>(input.size()) &&
+                input[current] == '"') {
+                current++; // consumir comilla de cierre
+            }
+            return new Token(Token::STRING, input, first, current);
+        }
+
+        // Números (solo enteros por ahora)
+        if (std::isdigit(static_cast<unsigned char>(c))) {
+            current++;
+            while (current < static_cast<int>(input.size()) &&
+                   std::isdigit(static_cast<unsigned char>(input[current]))) {
+                current++;
+            }
+            return new Token(Token::NUM, input, first, current);
+        }
+
+        // Identificadores y palabras clave
+        if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
+            current++;
+            while (current < static_cast<int>(input.size()) &&
+                   (std::isalnum(static_cast<unsigned char>(input[current])) ||
+                    input[current] == '_')) {
+                current++;
+            }
+            std::string lex = input.substr(first, current - first);
+
+            if (lex == "return")   return new Token(Token::RETURN,  lex[0]);
+            if (lex == "if")       return new Token(Token::IF,      lex[0]);
+            if (lex == "else")     return new Token(Token::ELSE,    lex[0]);
+            if (lex == "while")    return new Token(Token::WHILE,   lex[0]);
+            if (lex == "for")      return new Token(Token::FOR,     lex[0]);
+            if (lex == "do")       return new Token(Token::DO,      lex[0]);
+            if (lex == "printf")   return new Token(Token::PRINT,   lex[0]);
+            if (lex == "true")     return new Token(Token::TRUE,    lex[0]);
+            if (lex == "false")    return new Token(Token::FALSE,   lex[0]);
+            if (lex == "unsigned") return new Token(Token::UNSIGNED,lex[0]);
+            if (lex == "int")      return new Token(Token::INT,     lex[0]);
+            if (lex == "float")    return new Token(Token::FLOAT,   lex[0]);
+            if (lex == "long")     return new Token(Token::LONG,    lex[0]);
+            if (lex == "auto")     return new Token(Token::AUTO,    lex[0]);
+
+            // Identificador genérico
+            Token* t = new Token(Token::ID);
+            t->text = lex;
+            return t;
+        }
+
+        // Operadores y signos de puntuación
+        current++;
+        switch (c) {
+            case '+': return new Token(Token::PLUS, c);
+            case '-': return new Token(Token::MINUS, c);
+            case '*':
+                if (current < static_cast<int>(input.size()) &&
+                    input[current] == '*') {
+                    current++;
+                    return new Token(Token::POW, '*');
+                }
+                return new Token(Token::MUL, c);
+            case '/': return new Token(Token::DIV, c);
+            case '%': return new Token(Token::MOD, c);
+            case '(': return new Token(Token::LPAREN, c);
+            case ')': return new Token(Token::RPAREN, c);
+            case '{': return new Token(Token::LBRACE, c);
+            case '}': return new Token(Token::RBRACE, c);
+            case ';': return new Token(Token::SEMICOL, c);
+            case ',': return new Token(Token::COMA, c);
+            case '<': return new Token(Token::LE, c);
+            case '>': return new Token(Token::GT, c);
+            case '=': return new Token(Token::ASSIGN, c);
+            case '?': return new Token(Token::QMARK, c);
+            case ':': return new Token(Token::COL, c);
+            case '\\':return new Token(Token::BACKSLASH, c);
+            case '.': return new Token(Token::DOT, c);
+            default:
+                // Carácter no reconocido
+                return new Token(Token::ERR, c);
+        }
+    }
 }
 
-
-
-
-// -----------------------------
-// Destructor
-// -----------------------------
-Scanner::~Scanner() { }
-
-// -----------------------------
-// Función de prueba
-// -----------------------------
-
-int ejecutar_scanner(Scanner* scanner, const string& InputFile) {
-    Token* tok;
-
-    // Crear nombre para archivo de salida
-    string OutputFileName = InputFile;
-    size_t pos = OutputFileName.find_last_of(".");
-    if (pos != string::npos) {
-        OutputFileName = OutputFileName.substr(0, pos);
-    }
-    OutputFileName += "_tokens.txt";
-
-    ofstream outFile(OutputFileName);
+// Versión sencilla de ejecutar_scanner (opcional)
+int ejecutar_scanner(Scanner* scanner, const std::string& inputFile) {
+    std::ofstream outFile(inputFile + ".tokens.txt");
     if (!outFile.is_open()) {
-        cerr << "Error: no se pudo abrir el archivo " << OutputFileName << endl;
-        return 0;
+        std::cerr << "No se pudo abrir archivo de salida de tokens\n";
+        return 1;
     }
-
-    outFile << "Scanner\n" << endl;
 
     while (true) {
-        tok = scanner->nextToken();
-
-        if (tok->type == Token::END) {
-            outFile << *tok << endl;
+        Token* tok = scanner->nextToken();
+        if (!tok) break;
+        outFile << *tok << "\n";
+        if (tok->type == Token::END || tok->type == Token::ERR) {
             delete tok;
-            outFile << "\nScanner exitoso" << endl << endl;
-            outFile.close();
-            return 0;
+            break;
         }
-
-        if (tok->type == Token::ERR) {
-            outFile << *tok << endl;
-            delete tok;
-            outFile << "Caracter invalido" << endl << endl;
-            outFile << "Scanner no exitoso" << endl << endl;
-            outFile.close();
-            return 0;
-        }
-
-        outFile << *tok << endl;
         delete tok;
     }
+
+    outFile.close();
+    return 0;
 }
