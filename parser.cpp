@@ -128,8 +128,8 @@ void Parser::parseTopLevelDeclaration(Program* prog) {
     if (check(Token::LPAREN)) {
         // Declaración de función
         FunDec* fd = new FunDec();
-        fd->kind = kind;
-        fd->type = typeName;
+        fd->kind   = kind;
+        fd->type   = typeName;
         fd->nombre = name;
 
         match(Token::LPAREN);
@@ -175,7 +175,7 @@ void Parser::parseParamList(FunDec* fd) {
     while (true) {
         std::string ptype;
         TypeKind pkind = parseTypeSpec(ptype);
-        (void)pkind; // por ahora no usamos el TypeKind de parámetros
+        (void)pkind; // no usamos aún el TypeKind del parámetro
 
         if (!match(Token::ID)) {
             error("Se esperaba nombre de parámetro");
@@ -284,6 +284,9 @@ Body* Parser::parseBody() {
         } else if (isTypeStart()) {
             VarDec* vd = parseTypedVariableDeclaration();
             body->declarations.push_back(vd);
+        } else if (check(Token::FOR)) {
+            // desazucar for(...) dentro de este bloque
+            parseForIntoBody(body);
         } else {
             Stm* s = parseStatement();
             if (s != nullptr) {
@@ -297,6 +300,110 @@ Body* Parser::parseBody() {
     }
 
     return body;
+}
+
+// Desazucar for (int i = 0; i < 10; i++) { ... }
+// a:
+// int i;
+// i = 0;
+// while (i < 10) {
+//   ...
+//   i = i + 1;
+// }
+void Parser::parseForIntoBody(Body* body) {
+    // current == FOR
+    match(Token::FOR);
+    if (!match(Token::LPAREN)) {
+        error("Se esperaba '(' después de 'for'");
+    }
+
+    // 1) Inicialización: for (**int i = 0;** i < 10; i++)
+    if (!isTypeStart()) {
+        error("Por ahora solo se soporta 'for' con inicialización 'int id = expr;'");
+    }
+
+    std::string itype;
+    TypeKind ikind = parseTypeSpec(itype);
+    (void)ikind; // no lo usamos más allá del tipo lógico
+
+    if (!match(Token::ID)) {
+        error("Se esperaba identificador en la inicialización del for");
+    }
+    std::string varName = previous->text;
+
+    if (!match(Token::ASSIGN)) {
+        error("Se esperaba '=' en la inicialización del for");
+    }
+    Exp* initExp = parseExpression();
+
+    if (!match(Token::SEMICOL)) {
+        error("Se esperaba ';' después de la inicialización del for");
+    }
+
+    // Añadimos 'int i;' a las declaraciones del bloque
+    VarDec* vd = new VarDec();
+    vd->kind = ikind;
+    vd->type = itype;
+    vd->vars.push_back(varName);
+    vd->initializers.push_back(nullptr);
+    body->declarations.push_back(vd);
+
+    // Añadimos 'i = 0;' como sentencia al principio
+    body->StmList.push_back(new AssignStm(varName, initExp));
+
+    // 2) Condición: for (int i = 0; **i < 10;** i++)
+    if (!match(Token::ID)) {
+        error("Se esperaba identificador en la condición del for");
+    }
+    std::string condVar = previous->text;
+
+    if (!match(Token::LE)) {
+        error("Por ahora solo se soporta condición 'var < expr' en for");
+    }
+
+    Exp* condRight = parseExpression();
+
+    if (!match(Token::SEMICOL)) {
+        error("Se esperaba ';' después de la condición del for");
+    }
+
+    // 3) Paso: for (...; ...; **i++**)
+    if (!match(Token::ID)) {
+        error("Se esperaba identificador en el incremento del for");
+    }
+    std::string stepVar = previous->text;
+
+    if (!match(Token::PLUS) || !match(Token::PLUS)) {
+        error("Por ahora solo se soporta incremento 'var++' en for");
+    }
+
+    if (!match(Token::RPAREN)) {
+        error("Se esperaba ')' al final del encabezado del for");
+    }
+
+    // 4) Cuerpo del for: bloque o sentencia simple
+    Body* loopBody;
+    if (check(Token::LBRACE)) {
+        loopBody = parseBody();
+    } else {
+        Stm* only = parseStatement();
+        loopBody = new Body();
+        if (only) loopBody->StmList.push_back(only);
+    }
+
+    // Añadimos 'i = i + 1;' al final del cuerpo del while
+    Exp* stepLeft = new IdExp(stepVar);
+    Exp* one      = new NumberExp(1);
+    Exp* plusExpr = new BinaryExp(stepLeft, one, PLUS_OP);
+    loopBody->StmList.push_back(new AssignStm(stepVar, plusExpr));
+
+    // Condición del while: i < 10  => BinaryExp(IdExp(condVar), condRight, LE_OP)
+    Exp* condLeft = new IdExp(condVar);
+    Exp* condExpr = new BinaryExp(condLeft, condRight, LE_OP);
+
+    // Creamos el while y lo agregamos como sentencia
+    WhileStm* w = new WhileStm(condExpr, loopBody);
+    body->StmList.push_back(w);
 }
 
 // =============================
@@ -329,7 +436,7 @@ Stm* Parser::parseIfStatement() {
         error("Se esperaba ')' después de la condición de if");
     }
 
-    // Soportar if (cond) sentencia; y if (cond) { ... }
+    // Soportar if (cond) stmt; y if (cond) { ... }
     Body* thenBody;
     if (check(Token::LBRACE)) {
         thenBody = parseBody();
@@ -442,12 +549,21 @@ Exp* Parser::parseExpression() {
     return parseComparison();
 }
 
-// comparison: additive ( '<' additive )*
+// comparison: additive ( '<' additive | '>' additive )*
 Exp* Parser::parseComparison() {
     Exp* left = parseAdditive();
-    while (match(Token::LE)) {
-        Exp* right = parseAdditive();
-        left = new BinaryExp(left, right, LE_OP);
+    while (true) {
+        if (match(Token::LE)) {
+            // left < right
+            Exp* right = parseAdditive();
+            left = new BinaryExp(left, right, LE_OP);
+        } else if (match(Token::GT)) {
+            // left > right  ≈  right < left
+            Exp* right = parseAdditive();
+            left = new BinaryExp(right, left, LE_OP);
+        } else {
+            break;
+        }
     }
     return left;
 }
