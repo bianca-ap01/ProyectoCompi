@@ -37,6 +37,11 @@ int GenCodeVisitor::generar(Program* program) {
     return 0;
 }
 
+// Pre-pase opcional (actualmente no se usa porque reservamos stack por bloque)
+void GenCodeVisitor::preAsignarOffsets(Body* /*body*/) {
+    return;
+}
+
 int GenCodeVisitor::visit(Program* program) {
     env.add_level();
     out << ".data\n";
@@ -71,8 +76,10 @@ int GenCodeVisitor::visit(VarDec* vd) {
             memoriaGlobal[var] = true;
         } else {
             // local: solo asignamos offset, código lo genera FunDec con initializers
-            env.add_var(var, offset);
-            offset -= 8;
+            if (!env.check(var)) {
+                env.add_var(var, offset);
+                offset -= 8;
+            }
         }
     }
     return 0;
@@ -181,13 +188,50 @@ int GenCodeVisitor::visit(PrintStm* stm) {
 
 int GenCodeVisitor::visit(Body* b) {
     env.add_level();
-    // Ojo: en funciones, las declaraciones ya se procesan en FunDec::visit
+
+    // Reservar espacio para las variables declaradas en este bloque
+    int oldOffset    = offset;
+    int reservaLocal = 0;
+
     for (auto dec : b->declarations) {
-        dec->accept(this);
+        for (const auto& var : dec->vars) {
+            env.add_var(var, offset);
+            offset -= 8;
+            reservaLocal += 8;
+        }
     }
+
+    if (reservaLocal > 0) {
+        out << " subq $" << reservaLocal << ", %rsp" << endl;
+    }
+
+    // Inicializadores locales en orden de aparición
+    for (auto dec : b->declarations) {
+        auto varIt = dec->vars.begin();
+        for (size_t i = 0; i < dec->initializers.size() && varIt != dec->vars.end(); ++i, ++varIt) {
+            Exp* init = dec->initializers[i];
+            if (!init) continue;
+            const string& varName = *varIt;
+
+            init->accept(this); // → %rax
+
+            if (memoriaGlobal.count(varName)) {
+                out << " movq %rax, " << varName << "(%rip)" << endl;
+            } else {
+                out << " movq %rax, " << env.lookup(varName) << "(%rbp)" << endl;
+            }
+        }
+    }
+
+    // Sentencias del bloque
     for (auto s : b->StmList) {
         s->accept(this);
     }
+
+    if (reservaLocal > 0) {
+        out << " addq $" << reservaLocal << ", %rsp" << endl;
+    }
+    offset = oldOffset; // restaurar para bloques hermanos
     env.remove_level();
     return 0;
 }
@@ -274,49 +318,21 @@ int GenCodeVisitor::visit(FunDec* f) {
     out << f->nombre << ":" << endl;
     out << " pushq %rbp" << endl;
     out << " movq %rsp, %rbp" << endl;
-    
-    // Parámetros
+
+    // Parámetros: asignar offsets y reservar espacio para guardarlos
     int size = f->Pnombres.size();
+    int reservaArgs = size * 8;
+    if (reservaArgs > 0) {
+        out << " subq $" << reservaArgs << ", %rsp" << endl;
+    }
     for (int i = 0; i < size; i++) {
-        //memoria[f->Pnombres[i]] = offset;
         env.add_var(f->Pnombres[i], offset);
         out << " movq " << argRegs[i] << ", " << offset << "(%rbp)" << endl;
         offset -= 8;
     }
 
-    // Declaraciones locales: solo offset
-    for (auto dec : f->cuerpo->declarations) {
-        dec->accept(this);
-    }
-
-    // Reservar espacio de locals en el stack
-    int reserva = -offset - 8;
-    if (reserva > 0) {
-        out << " subq $" << reserva << ", %rsp" << endl;
-    }
-
-    // Inicializadores locales (incluye auto x = expr;)
-    for (auto dec : f->cuerpo->declarations) {
-        auto varIt = dec->vars.begin();
-        for (size_t i = 0; i < dec->initializers.size() && varIt != dec->vars.end(); ++i, ++varIt) {
-            Exp* init = dec->initializers[i];
-            if (!init) continue;
-            const string& varName = *varIt;
-
-            init->accept(this); // → %rax
-
-            if (memoriaGlobal.count(varName)) {
-                out << " movq %rax, " << varName << "(%rip)" << endl;
-            } else {
-                out << " movq %rax, " << env.lookup(varName) << "(%rbp)" << endl;
-            }
-        }
-    }
-
-    // Sentencias
-    for (auto s : f->cuerpo->StmList) {
-        s->accept(this);
-    }
+    // Cuerpo completo (declaraciones con inicializadores y sentencias)
+    f->cuerpo->accept(this);
 
     out << ".end_" << f->nombre << ":" << endl;
     out << "leave" << endl;

@@ -90,6 +90,10 @@ public:
     int visit(IfStm* stm) override;
     int visit(ReturnStm* r) override;
     int visit(ForStm* stm) override;
+
+private:
+    // Recorrido previo para asignar offsets a todas las variables locales (incluidas anidadas)
+    void preAsignarOffsets(Body* body);
 };
 
 #endif // VISITOR_H
