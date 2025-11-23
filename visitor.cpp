@@ -132,7 +132,7 @@ int GenCodeVisitor::visit(BinaryExp* exp) {
         case LE_OP:
             out << " cmpq %rcx, %rax" << endl;
             out << " movl $0, %eax" << endl;
-            out << " setle %al" << endl;
+            out << " setl %al" << endl;
             out << " movzbq %al, %rax" << endl;
             break;
     }
