@@ -1,7 +1,7 @@
 #include <iostream>
 #include "ast.h"
-#include "visitor.h"
 #include <unordered_map>
+#include "visitor.h"
 
 using namespace std;
 
@@ -38,6 +38,7 @@ int GenCodeVisitor::generar(Program* program) {
 }
 
 int GenCodeVisitor::visit(Program* program) {
+    env.add_level();
     out << ".data\n";
     out << "print_fmt: .string \"%ld \\n\"" << endl;
 
@@ -59,6 +60,7 @@ int GenCodeVisitor::visit(Program* program) {
     }
 
     out << ".section .note.GNU-stack,\"\",@progbits" << endl;
+    env.remove_level();
     return 0;
 }
 
@@ -69,7 +71,7 @@ int GenCodeVisitor::visit(VarDec* vd) {
             memoriaGlobal[var] = true;
         } else {
             // local: solo asignamos offset, código lo genera FunDec con initializers
-            memoria[var] = offset;
+            env.add_var(var, offset);
             offset -= 8;
         }
     }
@@ -85,7 +87,7 @@ int GenCodeVisitor::visit(IdExp* exp) {
     if (memoriaGlobal.count(exp->value))
         out << " movq " << exp->value << "(%rip), %rax" << endl;
     else
-        out << " movq " << memoria[exp->value] << "(%rbp), %rax" << endl;
+        out << " movq " << env.lookup(exp->value) << "(%rbp), %rax" << endl;
     return 0;
 }
 
@@ -162,7 +164,8 @@ int GenCodeVisitor::visit(AssignStm* stm) {
     if (memoriaGlobal.count(stm->id))
         out << " movq %rax, " << stm->id << "(%rip)" << endl;
     else
-        out << " movq %rax, " << memoria[stm->id] << "(%rbp)" << endl;
+        //out << " movq %rax, " << memoria[stm->id] << "(%rbp)" << endl;
+        out << " movq %rax, " << env.lookup(stm->id) << "(%rbp)" << endl;
     return 0;
 }
 
@@ -177,6 +180,7 @@ int GenCodeVisitor::visit(PrintStm* stm) {
 }
 
 int GenCodeVisitor::visit(Body* b) {
+    env.add_level();
     // Ojo: en funciones, las declaraciones ya se procesan en FunDec::visit
     for (auto dec : b->declarations) {
         dec->accept(this);
@@ -184,6 +188,7 @@ int GenCodeVisitor::visit(Body* b) {
     for (auto s : b->StmList) {
         s->accept(this);
     }
+    env.remove_level();
     return 0;
 }
 
@@ -221,6 +226,7 @@ int GenCodeVisitor::visit(ReturnStm* stm) {
 }
 
 int GenCodeVisitor::visit(ForStm* stm) {
+    env.add_level();
     // init
     if (stm->init) {
         stm->init->accept(this);
@@ -249,13 +255,16 @@ int GenCodeVisitor::visit(ForStm* stm) {
 
     out << " jmp for_" << label << endl;
     out << "endfor_" << label << ":" << endl;
-
+    env.remove_level();
     return 0;
+    
 }
 
 int GenCodeVisitor::visit(FunDec* f) {
     entornoFuncion = true;
-    memoria.clear();
+    //memoria.clear();
+    env.clear();
+    env.add_level();
     offset = -8;
     nombreFuncion = f->nombre;
 
@@ -265,11 +274,12 @@ int GenCodeVisitor::visit(FunDec* f) {
     out << f->nombre << ":" << endl;
     out << " pushq %rbp" << endl;
     out << " movq %rsp, %rbp" << endl;
-
+    
     // Parámetros
     int size = f->Pnombres.size();
     for (int i = 0; i < size; i++) {
-        memoria[f->Pnombres[i]] = offset;
+        //memoria[f->Pnombres[i]] = offset;
+        env.add_var(f->Pnombres[i], offset);
         out << " movq " << argRegs[i] << ", " << offset << "(%rbp)" << endl;
         offset -= 8;
     }
@@ -298,7 +308,7 @@ int GenCodeVisitor::visit(FunDec* f) {
             if (memoriaGlobal.count(varName)) {
                 out << " movq %rax, " << varName << "(%rip)" << endl;
             } else {
-                out << " movq %rax, " << memoria[varName] << "(%rbp)" << endl;
+                out << " movq %rax, " << env.lookup(varName) << "(%rbp)" << endl;
             }
         }
     }
@@ -313,6 +323,7 @@ int GenCodeVisitor::visit(FunDec* f) {
     out << "ret" << endl;
 
     entornoFuncion = false;
+    env.remove_level();
     return 0;
 }
 

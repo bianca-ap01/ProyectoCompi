@@ -6,6 +6,8 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+// Env
+#include "environment.h"
 
 using namespace std;
 
@@ -60,8 +62,8 @@ public:
     GenCodeVisitor(std::ostream& out) : out(out) {}
 
     int generar(Program* program);
-
-    unordered_map<string, int>  memoria;        // locals: nombre → offset
+    Environment<int> env;
+    //unordered_map<string, int>  memoria;        // locals: nombre → offset
     unordered_map<string, bool> memoriaGlobal;  // globals: nombre → bool
     int    offset        = -8;
     int    labelcont     = 0;

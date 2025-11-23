@@ -122,7 +122,7 @@ public:
 
     ForStm(Stm* init, Exp* condition, Stm* step, Body* b);
     int accept(Visitor* visitor) override;
-    ~ForStm() {};
+    ~ForStm() {}; 
 };
 
 class AssignStm: public Stm {
