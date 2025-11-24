@@ -14,6 +14,7 @@ using namespace std;
 class BinaryExp;
 class NumberExp;
 class IdExp;
+class BoolExp;
 class TernaryExp;
 class Program;
 class PrintStm;
@@ -34,6 +35,7 @@ public:
     virtual int visit(BinaryExp* exp) = 0;
     virtual int visit(NumberExp* exp) = 0;
     virtual int visit(IdExp* exp) = 0;
+    virtual int visit(BoolExp* exp) = 0;
     virtual int visit(TernaryExp* exp) = 0;
     virtual int visit(FcallExp* fcall) = 0;
 
@@ -74,6 +76,7 @@ public:
     int visit(BinaryExp* exp) override;
     int visit(NumberExp* exp) override;
     int visit(IdExp* exp) override;
+    int visit(BoolExp* exp) override;
     int visit(TernaryExp* exp) override;
     int visit(FcallExp* fcall) override;
 

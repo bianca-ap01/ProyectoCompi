@@ -12,6 +12,7 @@ using namespace std;
 int BinaryExp::accept(Visitor* visitor) { return visitor->visit(this); }
 int NumberExp::accept(Visitor* visitor) { return visitor->visit(this); }
 int IdExp::accept(Visitor* visitor)     { return visitor->visit(this); }
+int BoolExp::accept(Visitor* visitor)   { return visitor->visit(this); }
 int TernaryExp::accept(Visitor* v)      { return v->visit(this); }
 int FcallExp::accept(Visitor* v)        { return v->visit(this); }
 
@@ -87,6 +88,11 @@ int GenCodeVisitor::visit(VarDec* vd) {
 
 int GenCodeVisitor::visit(NumberExp* exp) {
     out << " movq $" << exp->value << ", %rax" << endl;
+    return 0;
+}
+
+int GenCodeVisitor::visit(BoolExp* exp) {
+    out << " movq $" << exp->valor << ", %rax" << endl;
     return 0;
 }
 
