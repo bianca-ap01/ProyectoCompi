@@ -1,12 +1,13 @@
 #ifndef DEBUGGER_H
 #define DEBUGGER_H
-
+#include <iterator> // <-- Añade esto si no está
 #include "visitor.h"
 #include "environment.h"
 #include <iostream>
 #include <string>
 #include <vector>
-
+#include <algorithm> // <-- ¡Necesario para std::find!
+#include <unordered_set>
 using namespace std;
 
 class DebuggerVisitor : public Visitor {
@@ -14,16 +15,17 @@ public:
     // SIMULACIÓN DE MEMORIA
     Environment<int> envValues;       // Guarda el VALOR real (ej: 10, 20)
     Environment<string> envOffsets;   // Guarda la DIRECCIÓN simulada (ej: "-8(%rbp)")
+    vector<string> currentScopeVars;
+    vector<string> visibleVars;
     int stepCounter = 0;
     // VARIABLES DE ESTADO (Imitando a GenCodeVisitor)
     int offset = -8;                  // El stack pointer simulado
     bool entornoFuncion = false;      // Para saber si estamos en local o global
 
     // Helper para imprimir el log que lee Python
-    void log(string accion, string var, string mem, int val) {
+    /*void log(string accion, string var, string mem, int val) {
         cout << "TRACE|" << accion << "|" << var << "|" << mem << "|" << val << endl;
-    }
-    vector<string> visibleVars;
+    }*/
 
     // --- FUNCIÓN CLAVE: DIBUJAR ESTADO ACTUAL ---
     // Crea un nodo de Graphviz que muestra la tabla de memoria actual
@@ -42,19 +44,37 @@ public:
         if (visibleVars.empty()) {
             cout << "    <TR><TD COLSPAN=\"3\">Wait...</TD></TR>" << endl;
         } else {
-            for (const string& var : visibleVars) {
+            // Usamos un set para no imprimir variables repetidas
+            // y un mapa para encontrar la última instancia válida (shadowing)
+            unordered_set<string> printedVars;
+            unordered_map<string, int> lastIndex;
+            
+            for (int k = 0; k < visibleVars.size(); ++k) {
+                lastIndex[visibleVars[k]] = k;
+            }
+
+            for (int k = 0; k < visibleVars.size(); ++k) {
+                string var = visibleVars[k];
+                
+                // Solo mostramos la última instancia (la más interna/reciente)
+                if (k != lastIndex[var]) continue;
+                
+                // Evitamos duplicados si por alguna razón quedaron residuos
+                if (printedVars.count(var)) continue;
+                printedVars.insert(var);
+
                 string mem = envOffsets.check(var) ? envOffsets.lookup(var) : "?";
                 int val = envValues.check(var) ? envValues.lookup(var) : 0;
                 
-                // Si es la variable que acaba de cambiar, la pintamos de AMARILLO
-                string color = (var == highlightVar) ? "BGCOLOR=\"yellow\"" : "";
+                string attr = (var == highlightVar) ? " BGCOLOR=\"yellow\"" : "";
                 
                 cout << "    <TR>"
-                        << "<TD " << color << ">" << var << "</TD>"
-                        << "<TD " << color << ">" << mem << "</TD>"
-                        << "<TD " << color << ">" << val << "</TD>"
-                        << "</TR>" << endl;
+                     << "<TD" << attr << ">" << var << "</TD>"
+                     << "<TD" << attr << ">" << mem << "</TD>"
+                     << "<TD" << attr << ">" << val << "</TD>"
+                     << "</TR>" << endl;
             }
+        
         }
         cout << "  </TABLE>>];" << endl;
 
@@ -91,10 +111,6 @@ public:
             }
         }
 
-        if (!mainFound) {
-            cout << "TRACE|ERROR|SYSTEM|-|No main function found" << endl;
-        }
-
         envValues.remove_level();
         envOffsets.remove_level();
         return 0;
@@ -104,33 +120,47 @@ public:
     // 2. FUNCIONES (Manejo del Stack Frame)
     // ==========================================
     int visit(FunDec* fd) override {
-        // Al entrar a una función, reseteamos el offset local a -8
-        // tal como lo hace tu visitor.cpp: "offset = -8;"
-        int savedOffset = offset; // Guardamos el offset anterior por si acaso
-        offset = -8;
+        // Nivel 1: Función (Main)
+        int savedOffset = offset; 
+        offset = -8; 
         entornoFuncion = true;
+        
+        // Guardar scope vars anterior (probablemente globales)
+        vector<string> savedScopeVars = currentScopeVars;
+        currentScopeVars.clear(); // Limpiar para nuevas locales de función
 
-        // Simulamos la entrada al scope de la función
-        // NOTA: Tu visitor.cpp hace "env.add_level()"
-        envValues.add_level(); 
-        envOffsets.add_level(); // Nuevo nivel para variables locales
-        // *Aquí deberíamos procesar argumentos si los hubiera, igual que visitor.cpp*
-        // Por ahora saltamos directo al cuerpo.
+        envValues.add_level(); envOffsets.add_level();
         dumpState("Enter " + fd->nombre);
-        fd->cuerpo->accept(this);
+        
+        if (fd->cuerpo) fd->cuerpo->accept(this);
+        
+        // Limpieza de variables locales de la función
+        for (const string& var : currentScopeVars) {
+            for (int k = visibleVars.size() - 1; k >= 0; --k) {
+                if (visibleVars[k] == var) {
+                    visibleVars.erase(visibleVars.begin() + k);
+                    break;
+                }
+            }
+        }
 
-        // Al salir, limpiamos
-        envValues.remove_level();
-        envOffsets.remove_level();
-        entornoFuncion = false;
-        offset = savedOffset; // Restauramos (aunque al salir del main termina todo)
+        envValues.remove_level(); envOffsets.remove_level();
+        entornoFuncion = false; 
+        offset = savedOffset;
+        currentScopeVars = savedScopeVars; // Restaurar
         return 0;
     }
 
     int visit(Body* b) override {
         // El Body en tu parser generalmente NO crea nuevo nivel de stack en C simple,
         // pero sí un scope lógico. Lo manejamos transparente aquí.
+        vector<string> savedVisibleVars = visibleVars;
+        vector<string> savedScopeVars = currentScopeVars;
+        int savedOffset = offset;
+        currentScopeVars.clear();
         
+        envValues.add_level();
+        envOffsets.add_level();
         // Declaraciones locales (VarDec)
         for (auto* dec : b->declarations) {
             dec->accept(this);
@@ -139,7 +169,22 @@ public:
         for (auto* stm : b->StmList) {
             stm->accept(this);
         }
+        // 1. Deshacer visibleVars para este scope
+        // --- LIMPIEZA CORREGIDA (Eliminar desde el final) ---
+        for (const string& var : currentScopeVars) {
+            // Buscamos de atrás hacia adelante para eliminar la instancia más reciente
+            for (int i = visibleVars.size() - 1; i >= 0; --i) {
+                if (visibleVars[i] == var) {
+                    visibleVars.erase(visibleVars.begin() + i);
+                    break; // Eliminamos solo una instancia y pasamos a la siguiente variable
+                }
+            }
+        }
+        offset = savedOffset;
 
+        envValues.remove_level();
+        envOffsets.remove_level();
+        currentScopeVars = savedScopeVars;
         
         return 0;
     }
@@ -147,34 +192,38 @@ public:
     // ==========================================
     // 3. DECLARACIÓN DE VARIABLES (Asignación de Offsets)
     // ==========================================
-    int visit(VarDec* vd) override {
-        for (string varName : vd->vars) {
-            string memLoc;
-            
+// En debugger.h (dentro de DebuggerVisitor)
+int visit(VarDec* vd) override {
+        auto initIt = vd->initializers.begin();
+
+        for (const string& var : vd->vars) {
+            string mem;
             if (entornoFuncion) {
-                // LÓGICA COPIADA DE visitor.cpp:
-                // Asigna offset actual y luego resta 8.
-                memLoc = to_string(offset) + "(%rbp)";
-                
-                // Guardamos dónde vive esta variable
-                envOffsets.add_var(varName, memLoc);
-                
-                // Decrementamos el stack pointer simulado
-                offset -= 8;
+                mem = to_string(offset) + "(%rbp)";
+                offset -= 8; 
             } else {
-                // Es global
-                memLoc = varName + "(%rip)"; // Notación típica para globales
-                
+                mem = var + "(%rip)"; 
+            }
+            
+            int initialValue = 0;
+            Exp* initializer = nullptr;
+            
+            if (initIt != vd->initializers.end()) {
+                initializer = *initIt;
+                ++initIt;
             }
 
-            // Guardar datos
-            envOffsets.add_var(varName, memLoc);
-            envValues.add_var(varName, 0);
+            if (initializer) {
+                initialValue = initializer->accept(this); 
+            }
             
-            // Agregar a la lista visible para dibujar
-            visibleVars.push_back(varName);
-
-            dumpState("Decl " + varName, varName);
+            envOffsets.add_var(var, mem);
+            envValues.add_var(var, initialValue);
+            
+            visibleVars.push_back(var);
+            currentScopeVars.push_back(var); 
+            
+            dumpState("Decl " + var, var); 
         }
         return 0;
     }
@@ -184,20 +233,19 @@ public:
     // ==========================================
     
     int visit(AssignStm* stm) override {
-        // 1. Calcular el valor (Interpretación)
-        int val = stm->e->accept(this);
+        int val = stm->e ? stm->e->accept(this) : 0;
         
-        // 2. Actualizar memoria simulada
-        envValues.update(stm->id, val);
-        
-        // 3. Recuperar dónde está guardada (para mostrarlo)
-        string memLoc = envOffsets.lookup(stm->id);
-        
-        // 4. Log
-        dumpState("Assign " + stm->id, stm->id);
+        // Verificamos si existe en envValues. 
+        // Nota: Si envOffsets se desincronizó, esto lo arregla visualmente si envValues aún lo tiene.
+        if (envValues.check(stm->id)) {
+            envValues.update(stm->id, val);
+            dumpState("Assign " + stm->id, stm->id);
+        } else {
+             // Fallback opcional: Si no se encuentra, es un error lógico o variable no declarada
+             // cout << "TRACE|ERROR|Assign|VarNotFound|" << stm->id << endl;
+        }
         return 0;
     }
-
     int visit(PrintStm* stm) override {
         int val = stm->e->accept(this);
         //cout << "OUTPUT|PRINT|CONSOLE|-|" << val << endl;
@@ -293,9 +341,21 @@ public:
             // Ejecutar Step (ej: i++)
             if (s->step) s->step->accept(this);
         }
-        return 0;
+        // 3. FINALIZAR SCOPE DEL FOR
+        dumpState("Exit For Loop"); 
+        
+        // --- LIMPIEZA CORREGIDA (Eliminar desde el final) ---
+        for (const string& var : currentScopeVars) {
+            for (int i = visibleVars.size() - 1; i >= 0; --i) {
+                if (visibleVars[i] == var) {
+                    visibleVars.erase(visibleVars.begin() + i);
+                    break; 
+                }
+            }
+        }
         envOffsets.remove_level();
         envValues.remove_level();
+        return 0;
     }
 };
 
