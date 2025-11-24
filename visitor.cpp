@@ -356,3 +356,104 @@ int GenCodeVisitor::visit(FcallExp* exp) {
     // RAX ya tiene retorno
     return 0;
 }
+/*
+#include "ast.h"
+
+// Usamos la dirección de memoria como ID único para el nodo en el grafo
+int DotVisitor::getId(void* ptr) {
+    return (long)ptr; // Casteo simple para obtener un número único
+}
+
+void DotVisitor::generateGraph(Program* p) {
+    cout << "digraph AST {" << endl;
+    cout << "  node [shape=box, style=filled, color=lightblue];" << endl;
+    p->accept(this);
+    cout << "}" << endl;
+}
+
+// --- Expresiones ---
+
+int DotVisitor::visit(BinaryExp* exp) {
+    int id = getId(exp);
+    // Definir el nodo
+    cout << "  " << id << " [label=\"" << Exp::binopToChar(exp->op) << "\", shape=circle, color=lightyellow];" << endl;
+    
+    // Visitar hijos
+    exp->left->accept(this);
+    exp->right->accept(this);
+
+    // Dibujar flechas
+    cout << "  " << id << " -> " << getId(exp->left) << ";" << endl;
+    cout << "  " << id << " -> " << getId(exp->right) << ";" << endl;
+    return 0;
+}
+
+int DotVisitor::visit(NumberExp* exp) {
+    int id = getId(exp);
+    cout << "  " << id << " [label=\"" << exp->value << "\", shape=ellipse];" << endl;
+    return 0;
+}
+
+int DotVisitor::visit(IdExp* exp) {
+    int id = getId(exp);
+    cout << "  " << id << " [label=\"ID: " << exp->value << "\"];" << endl;
+    return 0;
+}
+
+// --- Statements ---
+
+int DotVisitor::visit(AssignStm* stm) {
+    int id = getId(stm);
+    cout << "  " << id << " [label=\"Assign: " << stm->id << "\"];" << endl;
+    
+    stm->e->accept(this);
+    cout << "  " << id << " -> " << getId(stm->e) << ";" << endl;
+    return 0;
+}
+
+int DotVisitor::visit(Program* p) {
+    int id = getId(p);
+    cout << "  " << id << " [label=\"Program\", shape=Mdiamond, color=orange];" << endl;
+    
+    // Iterar sobre las declaraciones globales (ajusta según tu ast.h real)
+    // Asumiendo que Program tiene una lista de declaracions
+    // for (auto d : p->declarations) {
+    //    d->accept(this);
+    //    cout << "  " << id << " -> " << getId(d) << ";" << endl;
+    // }
+    return 0;
+}
+
+int DotVisitor::visit(Body* body) {
+    int id = getId(body);
+    cout << "  " << id << " [label=\"Body\"];" << endl;
+
+    for (Stm* s : body->StmList) {
+        s->accept(this);
+        cout << "  " << id << " -> " << getId(s) << ";" << endl;
+    }
+    return 0;
+}
+
+// Implementa el resto (If, While, Function) siguiendo este patrón:
+// 1. Imprimir definición del nodo actual.
+// 2. Llamar accept en los hijos.
+// 3. Imprimir flechas hacia los hijos.
+// ...
+// Rellenar métodos vacíos para que compile
+int DotVisitor::visit(TernaryExp* exp) { return 0; }
+int DotVisitor::visit(FcallExp* exp) { return 0; }
+int DotVisitor::visit(FunDec* fd) { return 0; }
+int DotVisitor::visit(VarDec* vd) { return 0; }
+int DotVisitor::visit(PrintStm* stm) { 
+    int id = getId(stm);
+    cout << "  " << id << " [label=\"PRINT\"];" << endl;
+    stm->e->accept(this);
+    cout << "  " << id << " -> " << getId(stm->e) << ";" << endl;
+    return 0; 
+}
+int DotVisitor::visit(IfStm* stm) { return 0; }
+int DotVisitor::visit(WhileStm* stm) { return 0; }
+int DotVisitor::visit(ReturnStm* stm) { return 0; }
+int DotVisitor::visit(ForStm* stm) { return 0; }
+*/
