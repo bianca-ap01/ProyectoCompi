@@ -145,18 +145,20 @@ void TypeChecker::visit(VarDec* v) {
 
         size_t idx = 0;
         for (const auto& id : v->vars) {
-            if (env.check(id)) {
-                cerr << "Error: variable '" << id << "' ya declarada." << endl;
-                exit(0);
-            }
             if (idx < v->initializers.size() && v->initializers[idx]) {
                 Type* initType = v->initializers[idx]->accept(this);
-                if (!initType->match(&base)) {
+                bool compatible = initType->match(&base) ||
+                                  (base.match(longType) && initType->match(intType));
+                if (!compatible) {
                     cerr << "Error: tipo de inicializador incompatible con '" << id << "'." << endl;
                     exit(0);
                 }
             }
-            env.add_var(id, new Type(base.ttype));
+            if (env.check(id)) {
+                env.update(id, new Type(base.ttype));
+            } else {
+                env.add_var(id, new Type(base.ttype));
+            }
             ++idx;
         }
     }
@@ -202,8 +204,9 @@ void TypeChecker::visit(FunDec* f) {
 
 void TypeChecker::visit(PrintStm* stm) {
     Type* t = stm->e->accept(this);
-    if (!(t->match(intType) || t->match(boolType))) {
-        cerr << "Error: tipo inválido en print (solo int o bool)." << endl;
+    if (!(t->match(intType) || t->match(boolType) || t->match(longType)
+        || t->match(uIntType) || t->match(floatType))) {
+        cerr << "Error: tipo inválido en print." << endl;
         exit(0);
     }
 }
@@ -219,9 +222,13 @@ void TypeChecker::visit(AssignStm* stm) {
 
     if (varType->ttype == Type::AUTO) {
         varType->ttype = expType->ttype;
-    } else if (!varType->match(expType)) {
-        cerr << "Error: tipos incompatibles en asignación a '" << stm->id << "'." << endl;
-        exit(0);
+    } else {
+        bool compatible = varType->match(expType) ||
+                          (varType->match(longType) && expType->match(intType));
+        if (!compatible) {
+            cerr << "Error: tipos incompatibles en asignación a '" << stm->id << "'." << endl;
+            exit(0);
+        }
     }
 }
 
@@ -266,6 +273,8 @@ void TypeChecker::visit(WhileStm* stm) {
 }
 
 void TypeChecker::visit(ForStm* stm) {
+    env.add_level();
+
     if (stm->init) stm->init->accept(this);
 
     if (stm->condition) {
@@ -278,6 +287,8 @@ void TypeChecker::visit(ForStm* stm) {
 
     if (stm->b) stm->b->accept(this);
     if (stm->step) stm->step->accept(this);
+
+    env.remove_level();
 }
 
 // ===========================================================
