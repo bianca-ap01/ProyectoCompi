@@ -383,7 +383,7 @@ void Parser::parseForIntoBody(Body* body) {
 
     // Construimos la sentencia de paso: i = i + 1;
     Exp* stepLeft = new IdExp(stepVar);
-    Exp* one      = new NumberExp(1);
+    Exp* one      = new NumberExp(1, 1.0, false, false, false);
     Exp* plusExpr = new BinaryExp(stepLeft, one, PLUS_OP);
     Stm* stepStm  = new AssignStm(stepVar, plusExpr);
 
@@ -617,7 +617,7 @@ Exp* Parser::parseFactor() {
     // Soportar unario '-'
     if (match(Token::MINUS)) {
         Exp* inner = parseFactor();
-        return new BinaryExp(new NumberExp(0), inner, MINUS_OP);
+        return new BinaryExp(new NumberExp(0, 0.0, false, false, false), inner, MINUS_OP);
     }
 
     return parsePrimary();
@@ -625,8 +625,37 @@ Exp* Parser::parseFactor() {
 
 Exp* Parser::parsePrimary() {
     if (match(Token::NUM)) {
-        int val = std::stoi(previous->text);
-        return new NumberExp(val);
+        std::string lex = previous->text;
+        bool isLong = false;
+        bool isUnsigned = false;
+        bool isFloat = false;
+
+        if (!lex.empty()) {
+            char last = lex.back();
+            if (last == 'L' || last == 'l') {
+                isLong = true;
+                lex.pop_back();
+            } else if (last == 'U' || last == 'u') {
+                isUnsigned = true;
+                lex.pop_back();
+            } else if (last == 'F' || last == 'f') {
+                isFloat = true;
+                lex.pop_back();
+            }
+        }
+
+        if (lex.find('.') != std::string::npos) {
+            isFloat = true;
+        }
+
+        if (isFloat) {
+            double fval = std::stod(lex);
+            long long ival = static_cast<long long>(fval);
+            return new NumberExp(ival, fval, true, false, false);
+        } else {
+            long long ival = std::stoll(lex);
+            return new NumberExp(ival, static_cast<double>(ival), false, isLong, isUnsigned);
+        }
     }
 
     if (match(Token::ID)) {

@@ -4,15 +4,22 @@ int main() {
     int x;
     int y;
     long z;
+    unsigned int a;
+    unsigned int b;
+    unsigned int c;
 
     x = 1;
     y = 10;
-    z = 1000000;
     x = 20;
+    z = 9876543210L;
+    a = 1;
+    b = 2;
+    c = a - b;
 
     printf(" %d\n", x);
     printf(" %d\n", y);
     printf(" %ld\n", z);
+    printf(" %\n", c);
 
     return 0;
 }
