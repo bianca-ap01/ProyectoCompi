@@ -6,6 +6,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <fstream>
 // Env
 #include "environment.h"
 
@@ -26,6 +27,18 @@ class FcallExp;
 class ReturnStm;
 class FunDec;
 class ForStm;
+
+struct FrameVar {
+    std::string name;
+    int offset;
+    std::string type;
+    std::string value; // placeholder sin ejecución
+};
+
+struct Frame {
+    std::string label;
+    std::vector<FrameVar> vars;
+};
 
 // Interfaz de Visitor
 class Visitor {
@@ -57,9 +70,10 @@ public:
 class GenCodeVisitor : public Visitor {
 private:
     std::ostream& out;
+    std::string stackPath;
 
 public:
-    GenCodeVisitor(std::ostream& out) : out(out) {}
+    GenCodeVisitor(std::ostream& out, const std::string& stackPath = "") : out(out), stackPath(stackPath) {}
 
     int generar(Program* program);
     Environment<int> env;
@@ -69,6 +83,9 @@ public:
     int    labelcont     = 0;
     bool   entornoFuncion = false;
     string nombreFuncion;
+    Frame  globalFrame{"globals"};
+    Frame  currentFrame{"none"};
+    std::vector<Frame> stackFrames;
 
     // Expresiones
     int visit(BinaryExp* exp) override;
@@ -94,6 +111,7 @@ public:
 private:
     // Recorrido previo para asignar offsets a todas las variables locales (incluidas anidadas)
     void preAsignarOffsets(Body* body);
+    void saveStack();
 };
 
 /*

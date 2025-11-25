@@ -2,6 +2,7 @@
 #include "ast.h"
 #include <unordered_map>
 #include "visitor.h"
+#include <fstream>
 
 using namespace std;
 
@@ -34,7 +35,36 @@ int ForStm::accept(Visitor* visitor)     { return visitor->visit(this); }
 
 int GenCodeVisitor::generar(Program* program) {
     program->accept(this);
+    saveStack();
     return 0;
+}
+
+void GenCodeVisitor::saveStack() {
+    if (stackPath.empty()) return;
+
+    std::vector<Frame> framesOut = stackFrames;
+    if (!globalFrame.vars.empty()) {
+        framesOut.insert(framesOut.begin(), globalFrame);
+    }
+
+    std::ofstream json(stackPath);
+    if (!json.is_open()) return;
+
+    json << "[\n";
+    for (size_t i = 0; i < framesOut.size(); ++i) {
+        const auto& fr = framesOut[i];
+        json << "  {\"label\":\"" << fr.label << "\",\"vars\":[";
+        for (size_t v = 0; v < fr.vars.size(); ++v) {
+            const auto& var = fr.vars[v];
+            json << "{\"name\":\"" << var.name << "\",\"value\":\"" << var.value << "\","
+                 << "\"offset\":" << var.offset << ",\"type\":\"" << var.type << "\"}";
+            if (v + 1 < fr.vars.size()) json << ",";
+        }
+        json << "]}";
+        if (i + 1 < framesOut.size()) json << ",";
+        json << "\n";
+    }
+    json << "]\n";
 }
 
 // Pre-pase opcional (actualmente no se usa porque reservamos stack por bloque)
@@ -74,11 +104,19 @@ int GenCodeVisitor::visit(VarDec* vd) {
         if (!entornoFuncion) {
             // global
             memoriaGlobal[var] = true;
+            // Capturamos en frame global
+            FrameVar fv{var, 0, vd->type, "?"};
+            globalFrame.vars.push_back(fv);
         } else {
             // local: solo asignamos offset, código lo genera FunDec con initializers
             if (!env.check(var)) {
-                env.add_var(var, offset);
+                int currentOffset = offset;
+                env.add_var(var, currentOffset);
                 offset -= 8;
+                if (currentFrame.label != "none") {
+                    FrameVar fv{var, currentOffset, vd->type, "?"};
+                    currentFrame.vars.push_back(fv);
+                }
             }
         }
     }
@@ -195,9 +233,16 @@ int GenCodeVisitor::visit(Body* b) {
 
     for (auto dec : b->declarations) {
         for (const auto& var : dec->vars) {
-            env.add_var(var, offset);
+            int currentOffset = offset;
+            env.add_var(var, currentOffset);
             offset -= 8;
             reservaLocal += 8;
+
+            // Capturar variables locales para visualización de stack
+            if (entornoFuncion && currentFrame.label != "none") {
+                FrameVar fv{var, currentOffset, dec->type, "?"};
+                currentFrame.vars.push_back(fv);
+            }
         }
     }
 
@@ -311,6 +356,7 @@ int GenCodeVisitor::visit(FunDec* f) {
     env.add_level();
     offset = -8;
     nombreFuncion = f->nombre;
+    currentFrame = Frame{f->nombre, {}};
 
     vector<std::string> argRegs = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
@@ -326,9 +372,12 @@ int GenCodeVisitor::visit(FunDec* f) {
         out << " subq $" << reservaArgs << ", %rsp" << endl;
     }
     for (int i = 0; i < size; i++) {
-        env.add_var(f->Pnombres[i], offset);
-        out << " movq " << argRegs[i] << ", " << offset << "(%rbp)" << endl;
+        int currentOffset = offset;
+        env.add_var(f->Pnombres[i], currentOffset);
+        out << " movq " << argRegs[i] << ", " << currentOffset << "(%rbp)" << endl;
         offset -= 8;
+        FrameVar fv{f->Pnombres[i], currentOffset, (i < (int)f->Ptipos.size() ? f->Ptipos[i] : "param"), "?"};
+        currentFrame.vars.push_back(fv);
     }
 
     // Cuerpo completo (declaraciones con inicializadores y sentencias)
@@ -340,6 +389,8 @@ int GenCodeVisitor::visit(FunDec* f) {
 
     entornoFuncion = false;
     env.remove_level();
+    stackFrames.push_back(currentFrame);
+    currentFrame = Frame{"none", {}};
     return 0;
 }
 

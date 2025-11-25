@@ -65,6 +65,7 @@ int main(int argc, const char* argv[]) {
         size_t dotPos = inputFile.find_last_of('.');
         string baseName = (dotPos == string::npos) ? inputFile : inputFile.substr(0, dotPos);
         string outputFilename = baseName + ".s";
+        string stackFilename  = baseName + "_stack.json";
         ofstream outfile(outputFilename);
         if (!outfile.is_open()) {
             cerr << "Error al crear el archivo de salida: " << outputFilename << endl;
@@ -72,7 +73,7 @@ int main(int argc, const char* argv[]) {
         }
 
     cout << "Generando codigo ensamblador en " << outputFilename << endl;
-    GenCodeVisitor codigo(outfile);
+    GenCodeVisitor codigo(outfile, stackFilename);
     codigo.generar(program);
     outfile.close();
     

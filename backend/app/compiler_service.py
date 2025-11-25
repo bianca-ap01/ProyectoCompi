@@ -2,6 +2,9 @@ import os
 import subprocess
 import base64
 import uuid
+import json
+import time
+from typing import List
 
 # Rutas
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,14 +25,25 @@ class CompilerService:
 
     def compile_cpp_compiler(self):
         """Compila tu código C++ una sola vez al iniciar el servidor"""
-        print("🔨 Compilando el compilador C++...")
-        
+        # Recompilar solo si el binario no existe o las fuentes son más nuevas
         # Lista de archivos fuente
         sources = [
             os.path.join(COMPILER_DIR, f) 
             for f in ["main.cpp", "scanner.cpp", "parser.cpp", "ast.cpp", "visitor.cpp", "token.cpp"]
             # Agrega token.cpp si lo usas
         ]
+
+        def needs_recompile():
+            if not os.path.exists(COMPILER_BIN):
+                return True
+            bin_mtime = os.path.getmtime(COMPILER_BIN)
+            return any(os.path.getmtime(src) > bin_mtime for src in sources)
+
+        if not needs_recompile():
+            print("ℹ️  Binario del compilador vigente, no se recompila.")
+            return
+
+        print("🔨 Compilando el compilador C++...")
         
         cmd = ["g++"] + sources + ["-o", COMPILER_BIN]
         res = subprocess.run(cmd, capture_output=True, text=True)
@@ -42,15 +56,18 @@ class CompilerService:
         # Usamos un ID único para que si 2 usuarios usan la web a la vez no se mezclen
         unique_id = str(uuid.uuid4())[:8]
         input_path = os.path.join(TEMP_DIR, f"{unique_id}.txt")
-        dot_path = os.path.join(TEMP_DIR, f"{unique_id}.dot")
-        png_path = os.path.join(TEMP_DIR, f"{unique_id}.png")
+        #dot_path = os.path.join(TEMP_DIR, f"{unique_id}.dot")
+        #png_path = os.path.join(TEMP_DIR, f"{unique_id}.png")
         asm_path = os.path.join(TEMP_DIR, f"{unique_id}.s")
         exec_path = os.path.join(TEMP_DIR, f"{unique_id}.exe")
+        stack_path = os.path.join(TEMP_DIR, f"{unique_id}_stack.json")
 
         logs = []
         output_text = ""
-        image_b64 = ""
+        image_b64 = ""  # Desactivado: no generamos imagen
+        asm_text = ""
         success = True
+        stack_frames: List[dict] = []  # Estructura para el front; si el compilador genera JSON se rellena más abajo
 
         try:
             # 1. Guardar el código fuente del usuario
@@ -58,32 +75,24 @@ class CompilerService:
                 f.write(source_code)
 
             # -------------------------------------------------
-            # PASO A: Generar Imagen (Debug Mode)
+            # PASO A: Generar Imagen (Debug Mode) - DESACTIVADO
             # -------------------------------------------------
-            res_debug = subprocess.run([COMPILER_BIN, input_path, "--debug"], capture_output=True, text=True)
-            
-            # Extraer DOT y corregir llave si falta (tu fix anterior)
-            raw_out = res_debug.stdout
-            start_idx = raw_out.find("digraph MemoryFlow")
-            
-            if start_idx != -1:
-                dot_content = raw_out[start_idx:].strip()
-                if not dot_content.endswith("}"):
-                    dot_content += "\n}"
-                
-                with open(dot_path, "w") as f:
-                    f.write(dot_content)
-                
-                # Convertir a PNG
-                subprocess.run(f"dot -Tpng {dot_path} -o {png_path}", shell=True, check=True)
-                
-                # Leer PNG y pasar a Base64
-                if os.path.exists(png_path):
-                    with open(png_path, "rb") as img_file:
-                        b64_bytes = base64.b64encode(img_file.read())
-                        image_b64 = b64_bytes.decode('utf-8')
-            else:
-                logs.append("⚠️ No se pudo generar la visualización (No graph found).")
+            # res_debug = subprocess.run([COMPILER_BIN, input_path, "--debug"], capture_output=True, text=True)
+            # raw_out = res_debug.stdout
+            # start_idx = raw_out.find("digraph MemoryFlow")
+            # if start_idx != -1:
+            #     dot_content = raw_out[start_idx:].strip()
+            #     if not dot_content.endswith("}"):
+            #         dot_content += "\n}"
+            #     with open(dot_path, "w") as f:
+            #         f.write(dot_content)
+            #     subprocess.run(f"dot -Tpng {dot_path} -o {png_path}", shell=True, check=True)
+            #     if os.path.exists(png_path):
+            #         with open(png_path, "rb") as img_file:
+            #             b64_bytes = base64.b64encode(img_file.read())
+            #             image_b64 = b64_bytes.decode('utf-8')
+            # else:
+            #     logs.append("⚠️ No se pudo generar la visualización (No graph found).")
 
             # -------------------------------------------------
             # PASO B: Ejecutar Código (Assembly Mode)
@@ -106,6 +115,13 @@ class CompilerService:
             # pero asumamos que lo genera relativo al input.
             
             if os.path.exists(possible_asm):
+                # Leer ASM para mostrarlo en el frontend
+                try:
+                    with open(possible_asm, "r") as asm_file:
+                        asm_text = asm_file.read()
+                except Exception as e:
+                    logs.append(f"No se pudo leer ASM: {e}")
+
                 # Compilar con GCC
                 res_gcc = subprocess.run(["g++", possible_asm, "-o", exec_path], capture_output=True, text=True)
                 if res_gcc.returncode == 0:
@@ -130,9 +146,19 @@ class CompilerService:
             # os.remove(input_path) ...etc
             pass
 
+        # Intentar leer stack JSON si el compilador lo generó
+        if os.path.exists(stack_path):
+            try:
+                with open(stack_path, "r") as sf:
+                    stack_frames = json.load(sf)
+            except Exception as e:
+                logs.append(f"No se pudo leer stack JSON: {e}")
+
         return {
             "success": success,
             "output": output_text,
             "image_b64": image_b64, # Frontend usa: <img src="data:image/png;base64,..." />
-            "logs": "\n".join(logs)
+            "logs": "\n".join(logs),
+            "stack": stack_frames,   # Datos estructurados para pintar el stack en el frontend
+            "asm": asm_text,
         }
