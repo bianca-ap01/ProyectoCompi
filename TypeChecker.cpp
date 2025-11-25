@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>
+
 using namespace std;
 
 // ===========================================================
@@ -111,7 +112,7 @@ void TypeChecker::visit(Body* b) {
 // ===========================================================
 
 void TypeChecker::visit(VarDec* v) {
-    bool isAuto = (v->type == "auto" || v->kind == TYPE_AUTO); // Soporte para 'auto'
+    bool isAuto = (v->type == "auto" || v->kind == TYPE_AUTO);
 
     if (isAuto) {
         Type* inferred = nullptr; // Tipo inferido por los inicializadores
@@ -148,7 +149,8 @@ void TypeChecker::visit(VarDec* v) {
             if (indice < v->initializers.size() && v->initializers[indice]) {
                 Type* initType = v->initializers[indice]->accept(this);
                 bool compatible = initType->match(&base) ||
-                                  (base.match(longType) && initType->match(intType));
+                                  (base.match(longType) && initType->match(intType)) ||
+                                  (base.match(uIntType) && (initType->match(intType) || initType->match(uIntType)));
                 if (!compatible) {
                     cerr << "Error: tipo de inicializador incompatible con '" << id << "'." << endl;
                     exit(0);
@@ -220,11 +222,12 @@ void TypeChecker::visit(AssignStm* stm) {
     Type* varType = env.lookup(stm->id);
     Type* expType = stm->e->accept(this);
 
-    if (varType->ttype == Type::AUTO) { // inferir tipo (si la variable en el entorno sigue con ttype == Type::AUTO)
-        varType->ttype = expType->ttype; // asignar tipo inferido (la primera asignación le fija el tipo al del RHS)
-    } else { // si no es auto,
-        bool compatible = varType->match(expType) || // verificar compatibilidad
-                          (varType->match(longType) && expType->match(intType));
+    if (varType->ttype == Type::AUTO) {
+        varType->ttype = expType->ttype;
+    } else {
+        bool compatible = varType->match(expType) ||
+                          (varType->match(longType) && expType->match(intType)) ||
+                          (varType->match(uIntType) && (expType->match(uIntType) || expType->match(intType)));
         if (!compatible) {
             cerr << "Error: tipos incompatibles en asignación a '" << stm->id << "'." << endl;
             exit(0);
@@ -299,23 +302,30 @@ Type* TypeChecker::visit(BinaryExp* e) {
     Type* left = e->left->accept(this);
     Type* right = e->right->accept(this);
 
+    bool leftIsUInt = left->match(uIntType);
+    bool rightIsUInt = right->match(uIntType);
+    bool leftIsInt = left->match(intType);
+    bool rightIsInt = right->match(intType);
+
     switch (e->op) {
         case PLUS_OP: 
         case MINUS_OP: 
         case MUL_OP: 
         case DIV_OP: 
         case POW_OP:
-            if (!(left->match(intType) && right->match(intType))) {
-                cerr << "Error: operación aritmética requiere operandos int." << endl;
-                exit(0);
-            }
-            return intType;
+            if (leftIsInt && rightIsInt) return intType;
+            if (leftIsUInt && rightIsUInt) return uIntType;
+            if ((leftIsInt && rightIsUInt) || (leftIsUInt && rightIsInt)) return intType; // mezcla -> int
+            cerr << "Error: operación aritmética requiere int/unsigned int compatibles." << endl;
+            exit(0);
         case LE_OP:
-            if (!(left->match(intType) && right->match(intType))) {
-                cerr << "Error: operación aritmética requiere operandos int." << endl;
-                exit(0);
-            }
-            return boolType;
+            if ((leftIsInt && rightIsInt) ||
+                (leftIsUInt && rightIsUInt) ||
+                (leftIsInt && rightIsUInt) ||
+                (leftIsUInt && rightIsInt))
+                return boolType;
+            cerr << "Error: comparación requiere operandos int o unsigned int." << endl;
+            exit(0);
         default:
             cerr << "Error: operador binario no soportado." << endl;
             exit(0);
@@ -323,6 +333,7 @@ Type* TypeChecker::visit(BinaryExp* e) {
 }
 
 Type* TypeChecker::visit(NumberExp* e) {
+    if (e->isUnsigned) return uIntType;
     return e->isLong ? longType : intType;
 }
 

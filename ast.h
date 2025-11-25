@@ -61,8 +61,9 @@ class NumberExp : public Exp {
 public:
     long long value;
     bool isLong;
+    bool isUnsigned;
     int accept(Visitor* visitor) override;
-    NumberExp(long long v, bool isLongLiteral);
+    NumberExp(long long v, bool isLongLiteral, bool isUnsignedLiteral);
     ~NumberExp();
     // --- NUEVO ---
     Type* accept(TypeVisitor* visitor);

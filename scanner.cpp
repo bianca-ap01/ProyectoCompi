@@ -63,8 +63,9 @@ Token* Scanner::nextToken() {
                 current++;
             }
             if (current < static_cast<int>(input.size()) &&
-                (input[current] == 'L' || input[current] == 'l')) {
-                current++; // consumir sufijo long
+                (input[current] == 'L' || input[current] == 'l' ||
+                 input[current] == 'U' || input[current] == 'u')) {
+                current++; // consumir sufijo long/unsigned
             }
             return new Token(Token::NUM, input, first, current);
         }
