@@ -111,20 +111,20 @@ void TypeChecker::visit(Body* b) {
 // ===========================================================
 
 void TypeChecker::visit(VarDec* v) {
-    bool isAuto = (v->type == "auto" || v->kind == TYPE_AUTO);
+    bool isAuto = (v->type == "auto" || v->kind == TYPE_AUTO); // Soporte para 'auto'
 
     if (isAuto) {
-        Type* inferred = nullptr;
-        size_t idx = 0;
-        for (const auto& id : v->vars) {
-            if (idx >= v->initializers.size() || v->initializers[idx] == nullptr) {
-                cerr << "Error: 'auto' requiere inicializador para '" << id << "'." << endl;
+        Type* inferred = nullptr; // Tipo inferido por los inicializadores
+        size_t indice = 0; // Índice para inicializadores
+        for (const auto& id : v->vars) { // se itera en cada variable
+            if (indice >= v->initializers.size() || v->initializers[indice] == nullptr) { // si no tiene inicializador
+                cerr << "Error: 'auto' requiere inicializador para '" << id << "'." << endl; // error
                 exit(0);
             }
-            Type* initType = v->initializers[idx]->accept(this);
-            if (!inferred) {
-                inferred = new Type(initType->ttype);
-            } else if (!inferred->match(initType)) {
+            Type* initType = v->initializers[indice]->accept(this); // obtener tipo del inicializador
+            if (!inferred) { // si es el primer inicializador
+                inferred = new Type(initType->ttype); // establecer tipo inferido
+            } else if (!inferred->match(initType)) { // si no coincide con el tipo inferido
                 cerr << "Error: los inicializadores de 'auto' no coinciden en tipo." << endl;
                 exit(0);
             }
@@ -134,7 +134,7 @@ void TypeChecker::visit(VarDec* v) {
                 exit(0);
             }
             env.add_var(id, new Type(inferred->ttype));
-            ++idx;
+            ++indice;
         }
     } else {
         Type base;
@@ -143,10 +143,10 @@ void TypeChecker::visit(VarDec* v) {
             exit(0);
         }
 
-        size_t idx = 0;
+        size_t indice = 0;
         for (const auto& id : v->vars) {
-            if (idx < v->initializers.size() && v->initializers[idx]) {
-                Type* initType = v->initializers[idx]->accept(this);
+            if (indice < v->initializers.size() && v->initializers[indice]) {
+                Type* initType = v->initializers[indice]->accept(this);
                 bool compatible = initType->match(&base) ||
                                   (base.match(longType) && initType->match(intType));
                 if (!compatible) {
@@ -159,7 +159,7 @@ void TypeChecker::visit(VarDec* v) {
             } else {
                 env.add_var(id, new Type(base.ttype));
             }
-            ++idx;
+            ++indice;
         }
     }
 }
@@ -220,10 +220,10 @@ void TypeChecker::visit(AssignStm* stm) {
     Type* varType = env.lookup(stm->id);
     Type* expType = stm->e->accept(this);
 
-    if (varType->ttype == Type::AUTO) {
-        varType->ttype = expType->ttype;
-    } else {
-        bool compatible = varType->match(expType) ||
+    if (varType->ttype == Type::AUTO) { // inferir tipo (si la variable en el entorno sigue con ttype == Type::AUTO)
+        varType->ttype = expType->ttype; // asignar tipo inferido (la primera asignación le fija el tipo al del RHS)
+    } else { // si no es auto,
+        bool compatible = varType->match(expType) || // verificar compatibilidad
                           (varType->match(longType) && expType->match(intType));
         if (!compatible) {
             cerr << "Error: tipos incompatibles en asignación a '" << stm->id << "'." << endl;
@@ -322,7 +322,9 @@ Type* TypeChecker::visit(BinaryExp* e) {
     }
 }
 
-Type* TypeChecker::visit(NumberExp* e) { return intType; }
+Type* TypeChecker::visit(NumberExp* e) {
+    return e->isLong ? longType : intType;
+}
 
 Type* TypeChecker::visit(BoolExp* e) { return boolType; }
 

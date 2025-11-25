@@ -383,7 +383,7 @@ void Parser::parseForIntoBody(Body* body) {
 
     // Construimos la sentencia de paso: i = i + 1;
     Exp* stepLeft = new IdExp(stepVar);
-    Exp* one      = new NumberExp(1);
+    Exp* one      = new NumberExp(1, false);
     Exp* plusExpr = new BinaryExp(stepLeft, one, PLUS_OP);
     Stm* stepStm  = new AssignStm(stepVar, plusExpr);
 
@@ -617,7 +617,7 @@ Exp* Parser::parseFactor() {
     // Soportar unario '-'
     if (match(Token::MINUS)) {
         Exp* inner = parseFactor();
-        return new BinaryExp(new NumberExp(0), inner, MINUS_OP);
+        return new BinaryExp(new NumberExp(0, false), inner, MINUS_OP);
     }
 
     return parsePrimary();
@@ -625,8 +625,14 @@ Exp* Parser::parseFactor() {
 
 Exp* Parser::parsePrimary() {
     if (match(Token::NUM)) {
-        int val = std::stoi(previous->text);
-        return new NumberExp(val);
+        std::string lex = previous->text;
+        bool isLong = false;
+        if (!lex.empty() && (lex.back() == 'L' || lex.back() == 'l')) {
+            isLong = true;
+            lex.pop_back();
+        }
+        long long val = std::stoll(lex);
+        return new NumberExp(val, isLong);
     }
 
     if (match(Token::ID)) {

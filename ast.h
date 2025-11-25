@@ -59,9 +59,10 @@ public:
 // Expresión numérica
 class NumberExp : public Exp {
 public:
-    int value;
+    long long value;
+    bool isLong;
     int accept(Visitor* visitor) override;
-    NumberExp(int v);
+    NumberExp(long long v, bool isLongLiteral);
     ~NumberExp();
     // --- NUEVO ---
     Type* accept(TypeVisitor* visitor);

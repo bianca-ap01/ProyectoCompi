@@ -62,6 +62,10 @@ Token* Scanner::nextToken() {
                    std::isdigit(static_cast<unsigned char>(input[current]))) {
                 current++;
             }
+            if (current < static_cast<int>(input.size()) &&
+                (input[current] == 'L' || input[current] == 'l')) {
+                current++; // consumir sufijo long
+            }
             return new Token(Token::NUM, input, first, current);
         }
 

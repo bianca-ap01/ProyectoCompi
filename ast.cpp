@@ -28,7 +28,8 @@ BinaryExp::~BinaryExp() {
 }
 
 // ------------------ NumberExp ------------------
-NumberExp::NumberExp(int v) : value(v) {}
+NumberExp::NumberExp(long long v, bool isLongLiteral)
+    : value(v), isLong(isLongLiteral) {}
 
 NumberExp::~NumberExp() {}
 
