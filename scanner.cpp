@@ -63,9 +63,20 @@ Token* Scanner::nextToken() {
                 current++;
             }
             if (current < static_cast<int>(input.size()) &&
+                input[current] == '.' &&
+                current + 1 < static_cast<int>(input.size()) &&
+                std::isdigit(static_cast<unsigned char>(input[current + 1]))) {
+                current++; // consumir '.'
+                while (current < static_cast<int>(input.size()) &&
+                       std::isdigit(static_cast<unsigned char>(input[current]))) {
+                    current++;
+                }
+            }
+            if (current < static_cast<int>(input.size()) &&
                 (input[current] == 'L' || input[current] == 'l' ||
-                 input[current] == 'U' || input[current] == 'u')) {
-                current++; // consumir sufijo long/unsigned
+                 input[current] == 'U' || input[current] == 'u' ||
+                 input[current] == 'F' || input[current] == 'f')) {
+                current++; // consumir sufijo de tipo
             }
             return new Token(Token::NUM, input, first, current);
         }
@@ -157,3 +168,4 @@ int ejecutar_scanner(Scanner* scanner, const std::string& inputFile) {
     outFile.close();
     return 0;
 }
+

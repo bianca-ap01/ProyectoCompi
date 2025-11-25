@@ -150,7 +150,8 @@ void TypeChecker::visit(VarDec* v) {
                 Type* initType = v->initializers[indice]->accept(this);
                 bool compatible = initType->match(&base) ||
                                   (base.match(longType) && initType->match(intType)) ||
-                                  (base.match(uIntType) && (initType->match(intType) || initType->match(uIntType)));
+                                  (base.match(uIntType) && (initType->match(intType) || initType->match(uIntType))) ||
+                                  (base.match(floatType) && (initType->match(intType) || initType->match(floatType)));
                 if (!compatible) {
                     cerr << "Error: tipo de inicializador incompatible con '" << id << "'." << endl;
                     exit(0);
@@ -227,7 +228,8 @@ void TypeChecker::visit(AssignStm* stm) {
     } else {
         bool compatible = varType->match(expType) ||
                           (varType->match(longType) && expType->match(intType)) ||
-                          (varType->match(uIntType) && (expType->match(uIntType) || expType->match(intType)));
+                          (varType->match(uIntType) && (expType->match(uIntType) || expType->match(intType))) ||
+                          (varType->match(floatType) && (expType->match(floatType) || expType->match(intType)));
         if (!compatible) {
             cerr << "Error: tipos incompatibles en asignación a '" << stm->id << "'." << endl;
             exit(0);
@@ -306,6 +308,10 @@ Type* TypeChecker::visit(BinaryExp* e) {
     bool rightIsUInt = right->match(uIntType);
     bool leftIsInt = left->match(intType);
     bool rightIsInt = right->match(intType);
+    bool leftIsLong = left->match(longType);
+    bool rightIsLong = right->match(longType);
+    bool leftIsFloat = left->match(floatType);
+    bool rightIsFloat = right->match(floatType);
 
     switch (e->op) {
         case PLUS_OP: 
@@ -313,18 +319,28 @@ Type* TypeChecker::visit(BinaryExp* e) {
         case MUL_OP: 
         case DIV_OP: 
         case POW_OP:
+            if (leftIsFloat || rightIsFloat) return floatType;
+            if (leftIsLong && rightIsLong) return longType;
+            if ((leftIsLong && rightIsInt) || (leftIsInt && rightIsLong)) return longType;
             if (leftIsInt && rightIsInt) return intType;
             if (leftIsUInt && rightIsUInt) return uIntType;
             if ((leftIsInt && rightIsUInt) || (leftIsUInt && rightIsInt)) return intType; // mezcla -> int
-            cerr << "Error: operación aritmética requiere int/unsigned int compatibles." << endl;
+            if ((leftIsLong && rightIsUInt) || (leftIsUInt && rightIsLong)) return longType;
+            cerr << "Error: operacion aritmetica requiere tipos numericos compatibles." << endl;
             exit(0);
         case LE_OP:
+            if (leftIsFloat || rightIsFloat) return boolType;
             if ((leftIsInt && rightIsInt) ||
+                (leftIsLong && rightIsLong) ||
+                (leftIsLong && rightIsInt) ||
+                (leftIsInt && rightIsLong) ||
                 (leftIsUInt && rightIsUInt) ||
                 (leftIsInt && rightIsUInt) ||
-                (leftIsUInt && rightIsInt))
+                (leftIsUInt && rightIsInt) ||
+                (leftIsLong && rightIsUInt) ||
+                (leftIsUInt && rightIsLong))
                 return boolType;
-            cerr << "Error: comparación requiere operandos int o unsigned int." << endl;
+            cerr << "Error: comparacion requiere operandos numericos compatibles." << endl;
             exit(0);
         default:
             cerr << "Error: operador binario no soportado." << endl;
@@ -333,6 +349,7 @@ Type* TypeChecker::visit(BinaryExp* e) {
 }
 
 Type* TypeChecker::visit(NumberExp* e) {
+    if (e->isFloat) return floatType;
     if (e->isUnsigned) return uIntType;
     return e->isLong ? longType : intType;
 }

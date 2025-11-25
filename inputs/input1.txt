@@ -19,7 +19,7 @@ int main() {
     printf(" %d\n", x);
     printf(" %d\n", y);
     printf(" %ld\n", z);
-    printf(" %u\n", c);
+    printf(" %\n", c);
 
     return 0;
 }

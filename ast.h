@@ -60,10 +60,12 @@ public:
 class NumberExp : public Exp {
 public:
     long long value;
+    double fvalue;
+    bool isFloat;
     bool isLong;
     bool isUnsigned;
     int accept(Visitor* visitor) override;
-    NumberExp(long long v, bool isLongLiteral, bool isUnsignedLiteral);
+    NumberExp(long long v, double fv, bool isFloatLiteral, bool isLongLiteral, bool isUnsignedLiteral);
     ~NumberExp();
     // --- NUEVO ---
     Type* accept(TypeVisitor* visitor);

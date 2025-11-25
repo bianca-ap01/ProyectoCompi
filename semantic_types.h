@@ -12,7 +12,6 @@ using namespace std;
 class Type {
 public:
     enum TType { NOTYPE, VOID, INT, FLOAT, UINT, LONG, BOOL, AUTO };
-    static const char* type_names[8];
 
     TType ttype;
 
@@ -44,10 +43,6 @@ public:
         if (s == "auto") return AUTO;
         return NOTYPE;
     }
-
-
 };
-
-inline const char* Type::type_names[8] = { "notype", "void", "int", "float", "unsigned int", "long", "bool", "auto"};
 
 #endif // SEMANTIC_TYPES_H

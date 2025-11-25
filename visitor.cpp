@@ -54,8 +54,8 @@ int GenCodeVisitor::visit(Program* program) {
     }
 
     // Reservar memoria para cada global: .quad 0
-    for (auto& [var, _] : memoriaGlobal) {
-        out << var << ": .quad 0" << endl;
+    for (auto it = memoriaGlobal.begin(); it != memoriaGlobal.end(); ++it) {
+        out << it->first << ": .quad 0" << endl;
     }
 
     out << ".text\n";
@@ -87,6 +87,10 @@ int GenCodeVisitor::visit(VarDec* vd) {
 }
 
 int GenCodeVisitor::visit(NumberExp* exp) {
+    if (exp->isFloat) {
+        cerr << "[GenCode] Literales float no soportados aún en generación de código." << endl;
+        exit(1);
+    }
     out << " movq $" << exp->value << ", %rax" << endl;
     return 0;
 }
