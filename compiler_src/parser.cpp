@@ -119,6 +119,7 @@ void Parser::parseTopLevelDeclaration(Program* prog) {
 
     string typeName;
     TypeKind kind = parseTypeSpec(typeName);
+    int declLine = previous ? previous->line : 0;
 
     if (!match(Token::ID)) {
         error("Se esperaba identificador después del tipo");
@@ -144,7 +145,7 @@ void Parser::parseTopLevelDeclaration(Program* prog) {
         prog->fdlist.push_back(fd);
     } else {
         // Declaración de variable global: ya consumimos el primer ID
-        VarDec* vd = new VarDec();
+        VarDec* vd = new VarDec(declLine);
         vd->kind = kind;
         vd->type = typeName;
         vd->vars.push_back(name);
@@ -195,6 +196,7 @@ void Parser::parseParamList(FunDec* fd) {
 VarDec* Parser::parseTypedVariableDeclaration() {
     VarDec* vd = new VarDec();
     vd->kind = parseTypeSpec(vd->type);
+    vd->line = previous ? previous->line : 0;
 
     // primer identificador
     if (!match(Token::ID)) {
@@ -232,6 +234,7 @@ VarDec* Parser::parseAutoDeclaration() {
     VarDec* vd = new VarDec();
     vd->kind = TYPE_AUTO;
     vd->type = "auto";
+    vd->line = current ? current->line : 0;
 
     if (!match(Token::AUTO)) {
         error("Se esperaba 'auto'");
@@ -315,11 +318,13 @@ void Parser::parseForIntoBody(Body* body) {
 
     std::string itype;
     TypeKind ikind = parseTypeSpec(itype);
+    int declLine = previous ? previous->line : 0;
 
     if (!match(Token::ID)) {
         error("Se esperaba identificador en la inicialización del for");
     }
     std::string varName = previous->text;
+    int initLine = previous ? previous->line : declLine;
 
     if (!match(Token::ASSIGN)) {
         error("Se esperaba '=' en la inicialización del for");
@@ -331,7 +336,7 @@ void Parser::parseForIntoBody(Body* body) {
     }
 
     // Añadimos 'int i;' a las declaraciones del bloque (para reservar espacio)
-    VarDec* vd = new VarDec();
+    VarDec* vd = new VarDec(declLine);
     vd->kind = ikind;
     vd->type = itype;
     vd->vars.push_back(varName);
@@ -339,7 +344,7 @@ void Parser::parseForIntoBody(Body* body) {
     body->declarations.push_back(vd);
 
     // Sentencia de inicialización (no la metemos directo al Body, la guardamos en el ForStm)
-    Stm* initStm = new AssignStm(varName, initExp);
+    Stm* initStm = new AssignStm(varName, initExp, initLine);
 
     // 2) Condición: for (int i = ...; i < expr; ...)
     if (!match(Token::ID)) {
@@ -362,6 +367,7 @@ void Parser::parseForIntoBody(Body* body) {
         error("Se esperaba identificador en el incremento del for");
     }
     std::string stepVar = previous->text;
+    int stepLine = previous ? previous->line : declLine;
 
     if (!match(Token::PLUS) || !match(Token::PLUS)) {
         error("Por ahora solo se soporta incremento 'var++' en for");
@@ -385,14 +391,14 @@ void Parser::parseForIntoBody(Body* body) {
     Exp* stepLeft = new IdExp(stepVar);
     Exp* one      = new NumberExp(1, 1.0, false, false, false);
     Exp* plusExpr = new BinaryExp(stepLeft, one, PLUS_OP);
-    Stm* stepStm  = new AssignStm(stepVar, plusExpr);
+    Stm* stepStm  = new AssignStm(stepVar, plusExpr, stepLine);
 
     // Condición del for: i < expr  => BinaryExp(IdExp(condVar), condRight, LE_OP)
     Exp* condLeft = new IdExp(condVar);
     Exp* condExpr = new BinaryExp(condLeft, condRight, LE_OP);
 
     // Creamos el nodo ForStm y lo agregamos como sentencia del bloque
-    ForStm* f = new ForStm(initStm, condExpr, stepStm, loopBody);
+    ForStm* f = new ForStm(initStm, condExpr, stepStm, loopBody, declLine);
     body->StmList.push_back(f);
 }
 
@@ -418,6 +424,7 @@ Stm* Parser::parseStatement() {
 
 Stm* Parser::parseIfStatement() {
     match(Token::IF);
+    int lineNo = previous ? previous->line : 0;
     if (!match(Token::LPAREN)) {
         error("Se esperaba '(' después de 'if'");
     }
@@ -447,11 +454,12 @@ Stm* Parser::parseIfStatement() {
         }
     }
 
-    return new IfStm(cond, thenBody, elseBody);
+    return new IfStm(cond, thenBody, elseBody, lineNo);
 }
 
 Stm* Parser::parseWhileStatement() {
     match(Token::WHILE);
+    int lineNo = previous ? previous->line : 0;
     if (!match(Token::LPAREN)) {
         error("Se esperaba '(' después de 'while'");
     }
@@ -469,25 +477,27 @@ Stm* Parser::parseWhileStatement() {
         if (s) b->StmList.push_back(s);
     }
 
-    return new WhileStm(cond, b);
+    return new WhileStm(cond, b, lineNo);
 }
 
 Stm* Parser::parseReturnStatement() {
     match(Token::RETURN);
+    int lineNo = previous ? previous->line : 0;
     if (check(Token::SEMICOL)) {
         match(Token::SEMICOL);
-        return new ReturnStm();
+        return new ReturnStm(nullptr, lineNo);
     } else {
         Exp* e = parseExpression();
         if (!match(Token::SEMICOL)) {
             error("Se esperaba ';' después de return");
         }
-        return new ReturnStm(e);
+        return new ReturnStm(e, lineNo);
     }
 }
 
 Stm* Parser::parsePrintStatement() {
     match(Token::PRINT);
+    int lineNo = previous ? previous->line : 0;
     if (!match(Token::LPAREN)) {
         error("Se esperaba '(' después de printf");
     }
@@ -509,7 +519,7 @@ Stm* Parser::parsePrintStatement() {
         error("Se esperaba ';' después de printf");
     }
 
-    return new PrintStm(arg);
+    return new PrintStm(arg, lineNo);
 }
 
 Stm* Parser::parseAssignOrExprStatement() {
@@ -517,6 +527,7 @@ Stm* Parser::parseAssignOrExprStatement() {
         error("Se esperaba identificador al inicio de la sentencia");
     }
     std::string name = previous->text;
+    int lineNo = previous ? previous->line : 0;
 
     if (!match(Token::ASSIGN)) {
         error("Por ahora solo se soportan sentencias de asignación tipo 'id = expr;'");
@@ -528,7 +539,7 @@ Stm* Parser::parseAssignOrExprStatement() {
         error("Se esperaba ';' al final de la sentencia de asignación");
     }
 
-    return new AssignStm(name, rhs);
+    return new AssignStm(name, rhs, lineNo);
 }
 
 // =============================

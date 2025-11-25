@@ -5,7 +5,7 @@
 #include "parser.h"
 #include "ast.h"
 #include "visitor.h"
-#include "typechecker.h"
+#include "TypeChecker.h"
 
 using namespace std;
 
@@ -55,7 +55,8 @@ int main(int argc, const char* argv[]) {
     tc.typecheck(program);
 
     cout << "Generando codigo ensamblador en " << outputFilename << endl;
-    GenCodeVisitor codigo(outfile);
+    string stackFilename = baseName + "_stack.json";
+    GenCodeVisitor codigo(outfile, stackFilename);
     codigo.generar(program);
     outfile.close();
     

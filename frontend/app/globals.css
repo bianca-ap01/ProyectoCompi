@@ -132,4 +132,23 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Scrollbars suaves y discretos */
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    background: transparent;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.25);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+  }
+  .scrollbar-transparent {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+  }
 }

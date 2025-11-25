@@ -1,14 +1,14 @@
 #include "token.h"
 #include <iostream>
 
-Token::Token(Type type)
-    : type(type), text("") {}
+Token::Token(Type type, int line, int col)
+    : type(type), text(""), line(line), col(col) {}
 
-Token::Token(Type type, char c)
-    : type(type), text(1, c) {}
+Token::Token(Type type, char c, int line, int col)
+    : type(type), text(1, c), line(line), col(col) {}
 
-Token::Token(Type type, const std::string& source, int first, int last)
-    : type(type), text(source.substr(first, last - first)) {}
+Token::Token(Type type, const std::string& source, int first, int last, int line, int col)
+    : type(type), text(source.substr(first, last - first)), line(line), col(col) {}
 
 std::ostream& operator<<(std::ostream& outs, const Token& tok) {
     switch (tok.type) {

@@ -42,41 +42,51 @@ IdExp::~IdExp() {}
 Stm::~Stm() {}
 
 // ------------------ PrintStm ------------------
-PrintStm::PrintStm(Exp* expresion)
-    : e(expresion) {}
+PrintStm::PrintStm(Exp* expresion, int lineNo)
+    : e(expresion) {
+    line = lineNo;
+}
 
 PrintStm::~PrintStm() {
     delete e;
 }
 
 // ------------------ AssignStm ------------------
-AssignStm::AssignStm(string variable, Exp* expresion)
-    : id(std::move(variable)), e(expresion) {}
+AssignStm::AssignStm(string variable, Exp* expresion, int lineNo)
+    : id(std::move(variable)), e(expresion) {
+    line = lineNo;
+}
 
 AssignStm::~AssignStm() {
     delete e;
 }
 
 // ------------------ IfStm ------------------
-IfStm::IfStm(Exp* c, Body* t, Body* e)
-    : condition(c), then(t), els(e) {}
+IfStm::IfStm(Exp* c, Body* t, Body* e, int lineNo)
+    : condition(c), then(t), els(e) {
+    line = lineNo;
+}
 
 // destructor inline vacío en el .h
 
 // ------------------ WhileStm ------------------
-WhileStm::WhileStm(Exp* c, Body* body)
-    : condition(c), b(body) {}
+WhileStm::WhileStm(Exp* c, Body* body, int lineNo)
+    : condition(c), b(body) {
+    line = lineNo;
+}
 
 // destructor inline vacío en el .h
 
 // ------------------ ForStm ------------------
-ForStm::ForStm(Stm* i, Exp* c, Stm* s, Body* body)
-    : init(i), condition(c), step(s), b(body) {}
+ForStm::ForStm(Stm* i, Exp* c, Stm* s, Body* body, int lineNo)
+    : init(i), condition(c), step(s), b(body) {
+    line = lineNo;
+}
 
 // ------------------ ReturnStm ------------------
-ReturnStm::ReturnStm() : e(nullptr) {}
+ReturnStm::ReturnStm() : e(nullptr) { line = 0; }
 
-ReturnStm::ReturnStm(Exp* exp) : e(exp) {}
+ReturnStm::ReturnStm(Exp* exp, int lineNo) : e(exp) { line = lineNo; }
 
 // destructor inline vacío en el .h
 
@@ -95,7 +105,7 @@ TernaryExp::TernaryExp(Exp* c, Exp* t, Exp* e)
 // destructor inline vacío en el .h
 
 // ------------------ VarDec ------------------
-VarDec::VarDec() {}
+VarDec::VarDec(int lineNo) : line(lineNo) {}
 
 VarDec::~VarDec() {
     for (Exp* init : initializers) {

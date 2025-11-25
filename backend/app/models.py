@@ -13,6 +13,7 @@ class StackFrame(BaseModel):
     label: str                      # p.e. nombre de función o bloque
     vars: List[StackVar] = []       # variables visibles en ese frame
     sp: Optional[int] = None        # opcional: dirección/offset del stack pointer
+    line: Optional[int] = None      # línea del código fuente asociada al snapshot
 
 
 class SourceCode(BaseModel):

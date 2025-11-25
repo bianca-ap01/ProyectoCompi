@@ -1,43 +1,7 @@
-<<<<<<< HEAD:compiler_src/visitor.cpp
 #include <iostream>
 #include "ast.h"
 #include <unordered_map>
-#include "visitor.h"
-#include <fstream>
-
-using namespace std;
-
-///////////////////////////////////////////////////////////////////////////////////
-// Métodos accept del AST
-///////////////////////////////////////////////////////////////////////////////////
-
-int BinaryExp::accept(Visitor* visitor) { return visitor->visit(this); }
-int NumberExp::accept(Visitor* visitor) { return visitor->visit(this); }
-int IdExp::accept(Visitor* visitor)     { return visitor->visit(this); }
-int TernaryExp::accept(Visitor* v)      { return v->visit(this); }
-int FcallExp::accept(Visitor* v)        { return v->visit(this); }
-
-int Program::accept(Visitor* visitor)   { return visitor->visit(this); }
-int FunDec::accept(Visitor* visitor)    { return visitor->visit(this); }
-int Body::accept(Visitor* visitor)      { return visitor->visit(this); }
-int VarDec::accept(Visitor* visitor)    { return visitor->visit(this); }
-
-int PrintStm::accept(Visitor* visitor)  { return visitor->visit(this); }
-int AssignStm::accept(Visitor* visitor) { return visitor->visit(this); }
-int IfStm::accept(Visitor* visitor)     { return visitor->visit(this); }
-int WhileStm::accept(Visitor* visitor)  { return visitor->visit(this); }
-int ReturnStm::accept(Visitor* visitor) { return visitor->visit(this); }
-int ForStm::accept(Visitor* visitor)     { return visitor->visit(this); }
-
-
-///////////////////////////////////////////////////////////////////////////////////
-// GenCodeVisitor
-///////////////////////////////////////////////////////////////////////////////////
-
-=======
-#include <iostream>
-#include "ast.h"
-#include <unordered_map>
+#include <algorithm>
 #include "visitor.h"
 
 using namespace std;
@@ -70,7 +34,6 @@ int ForStm::accept(Visitor* visitor)     { return visitor->visit(this); }
 // GenCodeVisitor
 ///////////////////////////////////////////////////////////////////////////////////
 
->>>>>>> origin/and:visitor.cpp
 int GenCodeVisitor::generar(Program* program) {
     program->accept(this);
     saveStack();
@@ -80,18 +43,18 @@ int GenCodeVisitor::generar(Program* program) {
 void GenCodeVisitor::saveStack() {
     if (stackPath.empty()) return;
 
-    std::vector<Frame> framesOut = stackFrames;
-    if (!globalFrame.vars.empty()) {
-        framesOut.insert(framesOut.begin(), globalFrame);
+    // Si no hay snapshots, al menos añade globals
+    if (snapshots.empty() && !globalFrame.vars.empty()) {
+        snapshots.push_back(Snapshot{"globals", globalFrame.vars, 0});
     }
 
-    std::ofstream json(stackPath);
+    std::ofstream json(stackPath, std::ios::trunc);
     if (!json.is_open()) return;
 
-    json << "[\n";
-    for (size_t i = 0; i < framesOut.size(); ++i) {
-        const auto& fr = framesOut[i];
-        json << "  {\"label\":\"" << fr.label << "\",\"vars\":[";
+    json << "[";
+    for (size_t i = 0; i < snapshots.size(); ++i) {
+        const auto& fr = snapshots[i];
+        json << "{\"label\":\"" << fr.label << "\",\"line\":" << fr.line << ",\"vars\":[";
         for (size_t v = 0; v < fr.vars.size(); ++v) {
             const auto& var = fr.vars[v];
             json << "{\"name\":\"" << var.name << "\",\"value\":\"" << var.value << "\","
@@ -99,10 +62,9 @@ void GenCodeVisitor::saveStack() {
             if (v + 1 < fr.vars.size()) json << ",";
         }
         json << "]}";
-        if (i + 1 < framesOut.size()) json << ",";
-        json << "\n";
+        if (i + 1 < snapshots.size()) json << ",";
     }
-    json << "]\n";
+    json << "]";
 }
 
 // Pre-pase opcional (actualmente no se usa porque reservamos stack por bloque)
@@ -114,31 +76,6 @@ int GenCodeVisitor::visit(Program* program) {
     env.add_level();
     out << ".data\n";
     out << "print_fmt: .string \"%ld \\n\"" << endl;
-<<<<<<< HEAD:compiler_src/visitor.cpp
-
-    // Declaraciones globales del AST
-    for (auto dec : program->vdlist) {
-        dec->accept(this);
-    }
-
-    // Reservar memoria para cada global: .quad 0
-    for (auto& [var, _] : memoriaGlobal) {
-        out << var << ": .quad 0" << endl;
-    }
-
-    out << ".text\n";
-
-    // Funciones
-    for (auto dec : program->fdlist) {
-        dec->accept(this);
-    }
-
-    out << ".section .note.GNU-stack,\"\",@progbits" << endl;
-    env.remove_level();
-    return 0;
-}
-
-=======
 
     // Declaraciones globales del AST
     for (auto dec : program->vdlist) {
@@ -162,7 +99,6 @@ int GenCodeVisitor::visit(Program* program) {
     return 0;
 }
 
->>>>>>> origin/and:visitor.cpp
 int GenCodeVisitor::visit(VarDec* vd) {
     for (auto& var : vd->vars) {
         if (!entornoFuncion) {
@@ -180,41 +116,34 @@ int GenCodeVisitor::visit(VarDec* vd) {
                 if (currentFrame.label != "none") {
                     FrameVar fv{var, currentOffset, vd->type, "?"};
                     currentFrame.vars.push_back(fv);
+                    currentVars[var] = fv;
+                    snapshot("decl " + var, vd->line);
                 }
             }
         }
     }
     return 0;
 }
-<<<<<<< HEAD:compiler_src/visitor.cpp
-
-int GenCodeVisitor::visit(NumberExp* exp) {
-=======
 
 int GenCodeVisitor::visit(NumberExp* exp) {
     if (exp->isFloat) {
         cerr << "[GenCode] Literales float no soportados aún en generación de código." << endl;
         exit(1);
     }
->>>>>>> origin/and:visitor.cpp
     out << " movq $" << exp->value << ", %rax" << endl;
     return 0;
 }
 
-<<<<<<< HEAD:compiler_src/visitor.cpp
-=======
 int GenCodeVisitor::visit(BoolExp* exp) {
     out << " movq $" << exp->valor << ", %rax" << endl;
     return 0;
 }
 
->>>>>>> origin/and:visitor.cpp
 int GenCodeVisitor::visit(IdExp* exp) {
     if (memoriaGlobal.count(exp->value))
         out << " movq " << exp->value << "(%rip), %rax" << endl;
     else
         out << " movq " << env.lookup(exp->value) << "(%rbp), %rax" << endl;
-<<<<<<< HEAD:compiler_src/visitor.cpp
     return 0;
 }
 
@@ -293,101 +222,15 @@ int GenCodeVisitor::visit(AssignStm* stm) {
     else
         //out << " movq %rax, " << memoria[stm->id] << "(%rbp)" << endl;
         out << " movq %rax, " << env.lookup(stm->id) << "(%rbp)" << endl;
-    return 0;
-}
-
-int GenCodeVisitor::visit(PrintStm* stm) {
-    stm->e->accept(this);
-    out <<
-        " movq %rax, %rsi\n"
-        " leaq print_fmt(%rip), %rdi\n"
-        " movl $0, %eax\n"
-        " call printf@PLT\n";
-    return 0;
-}
-
-=======
-    return 0;
-}
-
-int GenCodeVisitor::visit(BinaryExp* exp) {
-    // left → pila
-    exp->left->accept(this);
-    out << " pushq %rax" << endl;
-
-    // right → %rax, copiamos a %rcx
-    exp->right->accept(this);
-    out << " movq %rax, %rcx" << endl;
-    out << " popq %rax" << endl; // left en %rax
-
-    switch (exp->op) {
-        case PLUS_OP:
-            out << " addq %rcx, %rax" << endl;
-            break;
-        case MINUS_OP:
-            out << " subq %rcx, %rax" << endl;
-            break;
-        case MUL_OP:
-            out << " imulq %rcx, %rax" << endl;
-            break;
-        case DIV_OP:
-            out << " cqto" << endl;       // extiende signo a RDX:RAX
-            out << " idivq %rcx" << endl; // cociente → RAX
-            break;
-        case POW_OP: {
-            int lbl = labelcont++;
-            out << " movq %rax, %r8" << endl;    // base
-            out << " movq %rcx, %r9" << endl;    // exponente
-            out << " movq $1, %rax" << endl;     // res = 1
-            out << "pow_loop_" << lbl << ":" << endl;
-            out << " cmpq $0, %r9" << endl;
-            out << " jle pow_end_" << lbl << endl;
-            out << " imulq %r8, %rax" << endl;
-            out << " decq %r9" << endl;
-            out << " jmp pow_loop_" << lbl << endl;
-            out << "pow_end_" << lbl << ":" << endl;
-            break;
-        }
-        case LE_OP:
-            out << " cmpq %rcx, %rax" << endl;
-            out << " movl $0, %eax" << endl;
-            out << " setl %al" << endl;
-            out << " movzbq %al, %rax" << endl;
-            break;
+    if (currentVars.count(stm->id)) {
+        currentVars[stm->id].value = constEval(stm->e);
+    }
+    if (entornoFuncion && currentFrame.label != "none") {
+        snapshot("assign " + stm->id, stm->line);
     }
     return 0;
 }
 
-int GenCodeVisitor::visit(TernaryExp* exp) {
-    int label = labelcont++;
-
-    // condición
-    exp->condition->accept(this);
-    out << " cmpq $0, %rax" << endl;
-    out << " je ternary_else_" << label << endl;
-
-    // then
-    exp->thenExp->accept(this);
-    out << " jmp ternary_end_" << label << endl;
-
-    // else
-    out << "ternary_else_" << label << ":" << endl;
-    exp->elseExp->accept(this);
-
-    out << "ternary_end_" << label << ":" << endl;
-    return 0;
-}
-
-int GenCodeVisitor::visit(AssignStm* stm) {
-    stm->e->accept(this);
-    if (memoriaGlobal.count(stm->id))
-        out << " movq %rax, " << stm->id << "(%rip)" << endl;
-    else
-        //out << " movq %rax, " << memoria[stm->id] << "(%rbp)" << endl;
-        out << " movq %rax, " << env.lookup(stm->id) << "(%rbp)" << endl;
-    return 0;
-}
-
 int GenCodeVisitor::visit(PrintStm* stm) {
     stm->e->accept(this);
     out <<
@@ -398,7 +241,6 @@ int GenCodeVisitor::visit(PrintStm* stm) {
     return 0;
 }
 
->>>>>>> origin/and:visitor.cpp
 int GenCodeVisitor::visit(Body* b) {
     env.add_level();
 
@@ -417,10 +259,11 @@ int GenCodeVisitor::visit(Body* b) {
             if (entornoFuncion && currentFrame.label != "none") {
                 FrameVar fv{var, currentOffset, dec->type, "?"};
                 currentFrame.vars.push_back(fv);
+                currentVars[var] = fv;
+                snapshot("decl " + var, dec->line);
             }
         }
     }
-
     if (reservaLocal > 0) {
         out << " subq $" << reservaLocal << ", %rsp" << endl;
     }
@@ -440,12 +283,24 @@ int GenCodeVisitor::visit(Body* b) {
             } else {
                 out << " movq %rax, " << env.lookup(varName) << "(%rbp)" << endl;
             }
+
+            // Si es un literal numérico, guardamos el valor simbólico
+            if (currentVars.count(varName)) {
+                currentVars[varName].value = constEval(init);
+            }
         }
     }
 
     // Sentencias del bloque
     for (auto s : b->StmList) {
         s->accept(this);
+        // Snapshot por línea para mostrar el avance aun si no cambia memoria
+        if (entornoFuncion && currentFrame.label != "none" && s && s->line > 0) {
+            // Evitar duplicar snapshot de asignaciones (ya se capturan con label assign id)
+            if (dynamic_cast<AssignStm*>(s) == nullptr) {
+                snapshot("line " + to_string(s->line), s->line);
+            }
+        }
     }
 
     if (reservaLocal > 0) {
@@ -532,6 +387,7 @@ int GenCodeVisitor::visit(FunDec* f) {
     offset = -8;
     nombreFuncion = f->nombre;
     currentFrame = Frame{f->nombre, {}};
+    snapshots.clear();
 
     vector<std::string> argRegs = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
@@ -553,6 +409,7 @@ int GenCodeVisitor::visit(FunDec* f) {
         offset -= 8;
         FrameVar fv{f->Pnombres[i], currentOffset, (i < (int)f->Ptipos.size() ? f->Ptipos[i] : "param"), "?"};
         currentFrame.vars.push_back(fv);
+        currentVars[fv.name] = fv;
     }
 
     // Cuerpo completo (declaraciones con inicializadores y sentencias)
@@ -564,7 +421,8 @@ int GenCodeVisitor::visit(FunDec* f) {
 
     entornoFuncion = false;
     env.remove_level();
-    stackFrames.push_back(currentFrame);
+    snapshot(f->nombre + " (final)", 0);
+    currentVars.clear();
     currentFrame = Frame{"none", {}};
     return 0;
 }
@@ -582,104 +440,34 @@ int GenCodeVisitor::visit(FcallExp* exp) {
     // RAX ya tiene retorno
     return 0;
 }
-/*
-#include "ast.h"
 
-// Usamos la dirección de memoria como ID único para el nodo en el grafo
-int DotVisitor::getId(void* ptr) {
-    return (long)ptr; // Casteo simple para obtener un número único
-}
+void GenCodeVisitor::snapshot(const std::string& label, int line) {
+    if (currentFrame.label == "none") return;
 
-void DotVisitor::generateGraph(Program* p) {
-    cout << "digraph AST {" << endl;
-    cout << "  node [shape=box, style=filled, color=lightblue];" << endl;
-    p->accept(this);
-    cout << "}" << endl;
-}
-
-// --- Expresiones ---
-
-int DotVisitor::visit(BinaryExp* exp) {
-    int id = getId(exp);
-    // Definir el nodo
-    cout << "  " << id << " [label=\"" << Exp::binopToChar(exp->op) << "\", shape=circle, color=lightyellow];" << endl;
-    
-    // Visitar hijos
-    exp->left->accept(this);
-    exp->right->accept(this);
-
-    // Dibujar flechas
-    cout << "  " << id << " -> " << getId(exp->left) << ";" << endl;
-    cout << "  " << id << " -> " << getId(exp->right) << ";" << endl;
-    return 0;
-}
-
-int DotVisitor::visit(NumberExp* exp) {
-    int id = getId(exp);
-    cout << "  " << id << " [label=\"" << exp->value << "\", shape=ellipse];" << endl;
-    return 0;
-}
-
-int DotVisitor::visit(IdExp* exp) {
-    int id = getId(exp);
-    cout << "  " << id << " [label=\"ID: " << exp->value << "\"];" << endl;
-    return 0;
-}
-
-// --- Statements ---
-
-int DotVisitor::visit(AssignStm* stm) {
-    int id = getId(stm);
-    cout << "  " << id << " [label=\"Assign: " << stm->id << "\"];" << endl;
-    
-    stm->e->accept(this);
-    cout << "  " << id << " -> " << getId(stm->e) << ";" << endl;
-    return 0;
-}
-
-int DotVisitor::visit(Program* p) {
-    int id = getId(p);
-    cout << "  " << id << " [label=\"Program\", shape=Mdiamond, color=orange];" << endl;
-    
-    // Iterar sobre las declaraciones globales (ajusta según tu ast.h real)
-    // Asumiendo que Program tiene una lista de declaracions
-    // for (auto d : p->declarations) {
-    //    d->accept(this);
-    //    cout << "  " << id << " -> " << getId(d) << ";" << endl;
-    // }
-    return 0;
-}
-
-int DotVisitor::visit(Body* body) {
-    int id = getId(body);
-    cout << "  " << id << " [label=\"Body\"];" << endl;
-
-    for (Stm* s : body->StmList) {
-        s->accept(this);
-        cout << "  " << id << " -> " << getId(s) << ";" << endl;
+    // Insertamos un marcador de snapshot en el ASM para ubicar progreso
+    out << "# SNAP " << label;
+    if (line > 0) {
+        out << " line " << line;
     }
-    return 0;
+    out << "\n";
+
+    std::vector<FrameVar> vars;
+    for (auto &fv : currentFrame.vars) {
+        auto it = currentVars.find(fv.name);
+        if (it != currentVars.end()) {
+            fv.value = it->second.value;
+        }
+        vars.push_back(fv);
+    }
+    std::sort(vars.begin(), vars.end(), [](const FrameVar& a, const FrameVar& b){
+        return a.offset > b.offset;
+    });
+    snapshots.push_back(Snapshot{label, vars, line});
 }
 
-// Implementa el resto (If, While, Function) siguiendo este patrón:
-// 1. Imprimir definición del nodo actual.
-// 2. Llamar accept en los hijos.
-// 3. Imprimir flechas hacia los hijos.
-// ...
-// Rellenar métodos vacíos para que compile
-int DotVisitor::visit(TernaryExp* exp) { return 0; }
-int DotVisitor::visit(FcallExp* exp) { return 0; }
-int DotVisitor::visit(FunDec* fd) { return 0; }
-int DotVisitor::visit(VarDec* vd) { return 0; }
-int DotVisitor::visit(PrintStm* stm) { 
-    int id = getId(stm);
-    cout << "  " << id << " [label=\"PRINT\"];" << endl;
-    stm->e->accept(this);
-    cout << "  " << id << " -> " << getId(stm->e) << ";" << endl;
-    return 0; 
+std::string GenCodeVisitor::constEval(Exp* e) {
+    if (auto num = dynamic_cast<NumberExp*>(e)) {
+        return std::to_string(num->value);
+    }
+    return "?";
 }
-int DotVisitor::visit(IfStm* stm) { return 0; }
-int DotVisitor::visit(WhileStm* stm) { return 0; }
-int DotVisitor::visit(ReturnStm* stm) { return 0; }
-int DotVisitor::visit(ForStm* stm) { return 0; }
-*/

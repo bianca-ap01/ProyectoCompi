@@ -29,7 +29,7 @@ class CompilerService:
         # Lista de archivos fuente
         sources = [
             os.path.join(COMPILER_DIR, f) 
-            for f in ["main.cpp", "scanner.cpp", "parser.cpp", "ast.cpp", "visitor.cpp", "token.cpp"]
+            for f in ["main.cpp", "scanner.cpp", "parser.cpp", "ast.cpp", "visitor.cpp", "token.cpp", "TypeChecker.cpp"]
             # Agrega token.cpp si lo usas
         ]
 

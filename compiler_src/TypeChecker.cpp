@@ -1,4 +1,4 @@
-#include "typechecker.h"
+#include "TypeChecker.h"
 #include <cstdlib>
 #include <iostream>
 #include <stdexcept>

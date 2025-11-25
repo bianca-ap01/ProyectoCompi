@@ -96,6 +96,7 @@ public:
 
 class Stm{
 public:
+    int line = 0;
     virtual int accept(Visitor* visitor) = 0;
     virtual ~Stm() = 0;
     // --- NUEVO ---
@@ -108,7 +109,8 @@ public:
     string type;
     list<string> vars;
     vector<Exp*> initializers; // opcional: para soportar int x = 1;
-    VarDec();
+    int line = 0;
+    VarDec(int line = 0);
     int accept(Visitor* visitor);
     ~VarDec();
     // --- NUEVO ---
@@ -132,7 +134,7 @@ public:
     Body* then;
     Body* els; // puede ser nullptr
 
-    IfStm(Exp* condition, Body* then, Body* els);
+    IfStm(Exp* condition, Body* then, Body* els, int line = 0);
     int accept(Visitor* visitor) override;
     ~IfStm(){};
     // --- NUEVO ---
@@ -144,7 +146,7 @@ public:
     Exp* condition;
     Body* b;
 
-    WhileStm(Exp* condition, Body* b);
+    WhileStm(Exp* condition, Body* b, int line = 0);
     int accept(Visitor* visitor) override;
     ~WhileStm(){};
     // --- NUEVO ---
@@ -158,7 +160,7 @@ public:
     Stm*  step;      // sentencia de incremento (ej. i = i + 1;)
     Body* b;         // cuerpo del for
 
-    ForStm(Stm* init, Exp* condition, Stm* step, Body* b);
+    ForStm(Stm* init, Exp* condition, Stm* step, Body* b, int line = 0);
     int accept(Visitor* visitor) override;
     ~ForStm() {}; 
     // --- NUEVO ---
@@ -170,7 +172,7 @@ public:
     string id;
     Exp* e;
 
-    AssignStm(string, Exp*);
+    AssignStm(string, Exp*, int line = 0);
     ~AssignStm();
     int accept(Visitor* visitor) override;
     // --- NUEVO ---
@@ -181,7 +183,7 @@ class PrintStm: public Stm {
 public:
     Exp* e;
 
-    PrintStm(Exp*);
+    PrintStm(Exp*, int line = 0);
     ~PrintStm();
     int accept(Visitor* visitor) override;
     // --- NUEVO ---
@@ -193,7 +195,7 @@ public:
     Exp* e; // puede ser nullptr
 
     ReturnStm();
-    ReturnStm(Exp* e);
+    ReturnStm(Exp* e, int line = 0);
     ~ReturnStm(){};
     int accept(Visitor* visitor) override;
     // --- NUEVO ---

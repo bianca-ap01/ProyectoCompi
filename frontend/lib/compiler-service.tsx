@@ -18,6 +18,7 @@ export type StackFrame = {
   label: string
   vars: StackVar[]
   sp?: number
+  line?: number
 }
 
 const API_URL = process.env.NEXT_PUBLIC_COMPILER_API_URL || "http://localhost:8000"
