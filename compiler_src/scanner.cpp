@@ -38,6 +38,31 @@ Token* Scanner::nextToken() {
 
         first = current;
 
+        // Comentarios // y /* */
+        if (c == '/' && current + 1 < static_cast<int>(input.size())) {
+            char next = input[current + 1];
+            if (next == '/') {
+                // comentario de línea
+                while (current < static_cast<int>(input.size()) && input[current] != '\n') {
+                    advanceChar();
+                }
+                continue;
+            } else if (next == '*') {
+                // comentario de bloque
+                advanceChar(); // consume '/'
+                advanceChar(); // consume '*'
+                while (current + 1 < static_cast<int>(input.size())) {
+                    if (input[current] == '*' && input[current + 1] == '/') {
+                        advanceChar(); // '*'
+                        advanceChar(); // '/'
+                        break;
+                    }
+                    advanceChar();
+                }
+                continue;
+            }
+        }
+
         // Línea de preprocesador: #include, #define, etc. -> ignorar
         if (c == '#') {
             advanceChar();

@@ -1130,13 +1130,24 @@ int main() {
                                             className: "font-mono text-xs text-accent-foreground whitespace-pre-wrap leading-relaxed bg-muted/20 rounded-md p-3 border border-border h-full",
                                             children: (()=>{
                                                 const lines = (asm || "").split("\n");
-                                                // Usa la posición ordinal de cada SNAP en el ASM (n-th SNAP ↔ n-th snapshot)
-                                                const allMarkers = lines.map((l, idx)=>({
-                                                        l,
-                                                        idx
-                                                    })).filter(({ l })=>l.trim().startsWith("# SNAP")).map(({ idx })=>idx);
-                                                const markerIndex = activeSnap + 1 < allMarkers.length ? activeSnap + 1 : allMarkers.length - 1;
-                                                const markerLineIdx = markerIndex >= 0 ? allMarkers[markerIndex] : -1;
+                                                // Mapeo robusto con índice SNAPIDX emitido por el backend
+                                                const markerPositions = [];
+                                                const snapIdxLabel = `# SNAPIDX `;
+                                                lines.forEach((l, idx)=>{
+                                                    if (l.includes(snapIdxLabel)) {
+                                                        const parts = l.split("SNAPIDX ")[1];
+                                                        if (parts) {
+                                                            const numStr = parts.split(" ")[0];
+                                                            const parsed = parseInt(numStr, 10);
+                                                            if (!Number.isNaN(parsed)) {
+                                                                markerPositions[parsed] = idx;
+                                                            }
+                                                        }
+                                                    }
+                                                });
+                                                const snapIdx = stack[activeSnap]?.idx ?? activeSnap;
+                                                const lookaheadIdx = snapIdx + 1;
+                                                const markerLineIdx = markerPositions[lookaheadIdx] ?? -1;
                                                 const endIdx = markerLineIdx >= 0 ? markerLineIdx + 1 : lines.length;
                                                 const view = lines.slice(0, endIdx) // acumulado hasta el paso actual
                                                 ;
@@ -1147,7 +1158,7 @@ int main() {
                                                         children: line || " "
                                                     }, i, false, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 207,
+                                                        lineNumber: 218,
                                                         columnNumber: 23
                                                     }, this);
                                                 });
@@ -1184,14 +1195,14 @@ int main() {
                                                         size: 12
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 233,
+                                                        lineNumber: 244,
                                                         columnNumber: 40
                                                     }, this),
                                                     tab === "logs" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$alert$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__$3c$export__default__as__AlertCircle$3e$__["AlertCircle"], {
                                                         size: 12
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 234,
+                                                        lineNumber: 245,
                                                         columnNumber: 38
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1199,18 +1210,18 @@ int main() {
                                                         children: tab === "memory" ? "Memoria" : "Logs"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 235,
+                                                        lineNumber: 246,
                                                         columnNumber: 19
                                                     }, this)
                                                 ]
                                             }, tab, true, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 224,
+                                                lineNumber: 235,
                                                 columnNumber: 17
                                             }, this))
                                     }, void 0, false, {
                                         fileName: "[project]/app/page.tsx",
-                                        lineNumber: 222,
+                                        lineNumber: 233,
                                         columnNumber: 13
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1226,12 +1237,12 @@ int main() {
                                                     setActiveIndex: setActiveSnap
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 242,
+                                                    lineNumber: 253,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 241,
+                                                lineNumber: 252,
                                                 columnNumber: 17
                                             }, this),
                                             activeTab === "logs" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1243,29 +1254,29 @@ int main() {
                                                         children: "No hay logs disponibles."
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 254,
+                                                        lineNumber: 265,
                                                         columnNumber: 30
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 253,
+                                                    lineNumber: 264,
                                                     columnNumber: 19
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 252,
+                                                lineNumber: 263,
                                                 columnNumber: 17
                                             }, this)
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/app/page.tsx",
-                                        lineNumber: 239,
+                                        lineNumber: 250,
                                         columnNumber: 13
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/app/page.tsx",
-                                lineNumber: 221,
+                                lineNumber: 232,
                                 columnNumber: 11
                             }, this)
                         ]

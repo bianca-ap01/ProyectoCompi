@@ -1,0 +1,26 @@
+// Fibonacci recursivo sin strings/printf (solo if/return/asignaciones)
+int fib(int n) {
+    int a;
+    int b;
+    int res;
+
+    if (n < 2) {
+        return n;
+    }
+
+    a = fib(n - 1);
+    b = fib(n - 2);
+    res = a + b;
+    return res;
+}
+
+int main() {
+    int n;
+    int result;
+
+    n = 8;
+    result = fib(n);
+
+    printf(result);
+    return 0;
+}

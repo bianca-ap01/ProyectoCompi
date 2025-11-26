@@ -14,6 +14,7 @@ class StackFrame(BaseModel):
     vars: List[StackVar] = []       # variables visibles en ese frame
     sp: Optional[int] = None        # opcional: dirección/offset del stack pointer
     line: Optional[int] = None      # línea del código fuente asociada al snapshot
+    idx: Optional[int] = None       # índice global del snapshot
 
 
 class SourceCode(BaseModel):
@@ -27,3 +28,4 @@ class CompilationResponse(BaseModel):
     logs: str                          # Logs de compilación (errores gcc, etc)
     stack: List[StackFrame] = []       # Representación estructurada del stack/memoria
     asm: Optional[str] = None          # Código ensamblador generado (.s)
+    asm_by_line: Optional[dict] = None # Mapa línea fuente -> lista de instrucciones ASM

@@ -47,6 +47,7 @@ struct Snapshot {
     std::string label;
     std::vector<FrameVar> vars;
     int line;
+    int idx;
 };
 
 // Interfaz de Visitor
@@ -96,6 +97,9 @@ public:
     Frame  currentFrame{"none"};
     std::vector<Snapshot> snapshots;
     std::map<std::string, FrameVar> currentVars;
+    int snapshotCounter = 0;
+    std::map<int, std::vector<std::string>> asmByLine;
+    int currentLine = -1;
 
     // Expresiones
     int visit(BinaryExp* exp) override;
@@ -123,6 +127,8 @@ private:
     // Recorrido previo para asignar offsets a todas las variables locales (incluidas anidadas)
     void preAsignarOffsets(Body* body);
     void saveStack();
+    void saveAsmMap();
+    void emit(const std::string& instr, int lineOverride = -1);
     void snapshot(const std::string& label, int line = -1);
     std::string constEval(Exp* e);
 };

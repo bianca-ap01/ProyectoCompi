@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { ImageIcon } from "lucide-react"
 import type { StackFrame } from "@/lib/compiler-service"
 
@@ -36,10 +36,17 @@ export function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setA
 
   const current = snaps[activeIndex] ?? snaps[0]
   const prev = activeIndex > 0 ? snaps[activeIndex - 1] : undefined
+  const activeSnapRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
     if (activeIndex >= snaps.length) setActiveIndex(0)
   }, [snaps.length, activeIndex, setActiveIndex])
+
+  useEffect(() => {
+    if (activeSnapRef.current) {
+      activeSnapRef.current.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" })
+    }
+  }, [activeIndex])
 
   const changes = useMemo(() => {
     if (!current) return { added: [] as string[], updated: new Set<string>() }
@@ -83,6 +90,7 @@ export function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setA
               return (
                 <button
                   key={`${s.label}-${idx}`}
+                  ref={activeIndex === idx ? activeSnapRef : undefined}
                   onClick={() => setActiveIndex(idx)}
                   className={`text-left rounded-xl border border-white/10 px-3 py-2 transition-colors ${
                     activeIndex === idx

@@ -6,6 +6,50 @@
 
 using namespace std;
 
+// Utilidad: intentar parsear un long long desde string
+static bool tryParseLong(const std::string& s, long long& out) {
+    if (s.empty()) return false;
+    try {
+        size_t pos = 0;
+        out = std::stoll(s, &pos);
+        return pos == s.size();
+    } catch (...) {
+        return false;
+    }
+}
+
+static std::string jsonEscape(const std::string& s) {
+    std::string r;
+    r.reserve(s.size() + 8);
+    for (char c : s) {
+        switch (c) {
+            case '\\': r += "\\\\"; break;
+            case '"':  r += "\\\""; break;
+            case '\n': r += "\\n"; break;
+            case '\r': r += "\\r"; break;
+            case '\t': r += "\\t"; break;
+            default:   r += c; break;
+        }
+    }
+    return r;
+}
+
+static int sizeOfType(const std::string& t) {
+    // Usamos slots de 8 bytes para simplificar alineación y evitar solapamientos
+    (void)t;
+    return 8;
+}
+
+static bool is32Bit(const std::string& t) {
+    return false; // usaremos movq siempre para locales
+}
+
+static std::string getVarType(const std::map<std::string, FrameVar>& vars, const std::string& name) {
+    auto it = vars.find(name);
+    if (it != vars.end()) return it->second.type;
+    return "int";
+}
+
 ///////////////////////////////////////////////////////////////////////////////////
 // Métodos accept del AST
 ///////////////////////////////////////////////////////////////////////////////////
@@ -37,7 +81,16 @@ int ForStm::accept(Visitor* visitor)     { return visitor->visit(this); }
 int GenCodeVisitor::generar(Program* program) {
     program->accept(this);
     saveStack();
+    saveAsmMap();
     return 0;
+}
+
+void GenCodeVisitor::emit(const std::string& instr, int lineOverride) {
+    int line = (lineOverride >= 0) ? lineOverride : currentLine;
+    out << instr << endl;
+    if (line >= 0) {
+        asmByLine[line].push_back(instr);
+    }
 }
 
 void GenCodeVisitor::saveStack() {
@@ -45,7 +98,7 @@ void GenCodeVisitor::saveStack() {
 
     // Si no hay snapshots, al menos añade globals
     if (snapshots.empty() && !globalFrame.vars.empty()) {
-        snapshots.push_back(Snapshot{"globals", globalFrame.vars, 0});
+        snapshots.push_back(Snapshot{"globals", globalFrame.vars, 0, snapshotCounter++});
     }
 
     std::ofstream json(stackPath, std::ios::trunc);
@@ -54,7 +107,7 @@ void GenCodeVisitor::saveStack() {
     json << "[";
     for (size_t i = 0; i < snapshots.size(); ++i) {
         const auto& fr = snapshots[i];
-        json << "{\"label\":\"" << fr.label << "\",\"line\":" << fr.line << ",\"vars\":[";
+        json << "{\"label\":\"" << fr.label << "\",\"line\":" << fr.line << ",\"idx\":" << fr.idx << ",\"vars\":[";
         for (size_t v = 0; v < fr.vars.size(); ++v) {
             const auto& var = fr.vars[v];
             json << "{\"name\":\"" << var.name << "\",\"value\":\"" << var.value << "\","
@@ -67,15 +120,36 @@ void GenCodeVisitor::saveStack() {
     json << "]";
 }
 
+void GenCodeVisitor::saveAsmMap() {
+    if (stackPath.empty()) return;
+    std::string asmMapPath = stackPath + ".asm.json";
+    std::ofstream json(asmMapPath, std::ios::trunc);
+    if (!json.is_open()) return;
+    json << "{";
+    bool first = true;
+    for (const auto& kv : asmByLine) {
+        if (!first) json << ",";
+        first = false;
+        json << "\"" << kv.first << "\":[";
+        for (size_t i = 0; i < kv.second.size(); ++i) {
+            json << "\"" << jsonEscape(kv.second[i]) << "\"";
+            if (i + 1 < kv.second.size()) json << ",";
+        }
+        json << "]";
+    }
+    json << "}";
+}
+
 // Pre-pase opcional (actualmente no se usa porque reservamos stack por bloque)
 void GenCodeVisitor::preAsignarOffsets(Body* /*body*/) {
     return;
 }
 
 int GenCodeVisitor::visit(Program* program) {
+    currentLine = -1;
     env.add_level();
-    out << ".data\n";
-    out << "print_fmt: .string \"%ld \\n\"" << endl;
+    emit(".data");
+    emit("print_fmt: .string \"%ld \\n\"");
 
     // Declaraciones globales del AST
     for (auto dec : program->vdlist) {
@@ -84,22 +158,23 @@ int GenCodeVisitor::visit(Program* program) {
 
     // Reservar memoria para cada global: .quad 0
     for (auto it = memoriaGlobal.begin(); it != memoriaGlobal.end(); ++it) {
-        out << it->first << ": .quad 0" << endl;
+        emit(it->first + ": .quad 0");
     }
 
-    out << ".text\n";
+    emit(".text");
 
     // Funciones
     for (auto dec : program->fdlist) {
         dec->accept(this);
     }
 
-    out << ".section .note.GNU-stack,\"\",@progbits" << endl;
+    emit(".section .note.GNU-stack,\"\",@progbits");
     env.remove_level();
     return 0;
 }
 
 int GenCodeVisitor::visit(VarDec* vd) {
+    currentLine = vd->line;
     for (auto& var : vd->vars) {
         if (!entornoFuncion) {
             // global
@@ -112,7 +187,7 @@ int GenCodeVisitor::visit(VarDec* vd) {
             if (!env.check(var)) {
                 int currentOffset = offset;
                 env.add_var(var, currentOffset);
-                offset -= 8;
+                offset -= sizeOfType(vd->type);
                 if (currentFrame.label != "none") {
                     FrameVar fv{var, currentOffset, vd->type, "?"};
                     currentFrame.vars.push_back(fv);
@@ -130,66 +205,67 @@ int GenCodeVisitor::visit(NumberExp* exp) {
         cerr << "[GenCode] Literales float no soportados aún en generación de código." << endl;
         exit(1);
     }
-    out << " movq $" << exp->value << ", %rax" << endl;
+    emit(" movq $" + std::to_string(exp->value) + ", %rax");
     return 0;
 }
 
 int GenCodeVisitor::visit(BoolExp* exp) {
-    out << " movq $" << exp->valor << ", %rax" << endl;
+    emit(" movq $" + std::to_string(exp->valor) + ", %rax");
     return 0;
 }
 
 int GenCodeVisitor::visit(IdExp* exp) {
+    std::string vtype = getVarType(currentVars, exp->value);
     if (memoriaGlobal.count(exp->value))
-        out << " movq " << exp->value << "(%rip), %rax" << endl;
+        emit(" movq " + exp->value + "(%rip), %rax");
     else
-        out << " movq " << env.lookup(exp->value) << "(%rbp), %rax" << endl;
+        emit(" movq " + std::to_string(env.lookup(exp->value)) + "(%rbp), %rax");
     return 0;
 }
 
 int GenCodeVisitor::visit(BinaryExp* exp) {
     // left → pila
     exp->left->accept(this);
-    out << " pushq %rax" << endl;
+    emit(" pushq %rax");
 
     // right → %rax, copiamos a %rcx
     exp->right->accept(this);
-    out << " movq %rax, %rcx" << endl;
-    out << " popq %rax" << endl; // left en %rax
+    emit(" movq %rax, %rcx");
+    emit(" popq %rax"); // left en %rax
 
     switch (exp->op) {
         case PLUS_OP:
-            out << " addq %rcx, %rax" << endl;
+            emit(" addq %rcx, %rax");
             break;
         case MINUS_OP:
-            out << " subq %rcx, %rax" << endl;
+            emit(" subq %rcx, %rax");
             break;
         case MUL_OP:
-            out << " imulq %rcx, %rax" << endl;
+            emit(" imulq %rcx, %rax");
             break;
         case DIV_OP:
-            out << " cqto" << endl;       // extiende signo a RDX:RAX
-            out << " idivq %rcx" << endl; // cociente → RAX
+            emit(" cqto");       // extiende signo a RDX:RAX
+            emit(" idivq %rcx"); // cociente → RAX
             break;
         case POW_OP: {
             int lbl = labelcont++;
-            out << " movq %rax, %r8" << endl;    // base
-            out << " movq %rcx, %r9" << endl;    // exponente
-            out << " movq $1, %rax" << endl;     // res = 1
-            out << "pow_loop_" << lbl << ":" << endl;
-            out << " cmpq $0, %r9" << endl;
-            out << " jle pow_end_" << lbl << endl;
-            out << " imulq %r8, %rax" << endl;
-            out << " decq %r9" << endl;
-            out << " jmp pow_loop_" << lbl << endl;
-            out << "pow_end_" << lbl << ":" << endl;
+            emit(" movq %rax, %r8");    // base
+            emit(" movq %rcx, %r9");    // exponente
+            emit(" movq $1, %rax");     // res = 1
+            emit("pow_loop_" + std::to_string(lbl) + ":");
+            emit(" cmpq $0, %r9");
+            emit(" jle pow_end_" + std::to_string(lbl));
+            emit(" imulq %r8, %rax");
+            emit(" decq %r9");
+            emit(" jmp pow_loop_" + std::to_string(lbl));
+            emit("pow_end_" + std::to_string(lbl) + ":");
             break;
         }
         case LE_OP:
-            out << " cmpq %rcx, %rax" << endl;
-            out << " movl $0, %eax" << endl;
-            out << " setl %al" << endl;
-            out << " movzbq %al, %rax" << endl;
+            emit(" cmpq %rcx, %rax");
+            emit(" movl $0, %eax");
+            emit(" setl %al");
+            emit(" movzbq %al, %rax");
             break;
     }
     return 0;
@@ -200,28 +276,29 @@ int GenCodeVisitor::visit(TernaryExp* exp) {
 
     // condición
     exp->condition->accept(this);
-    out << " cmpq $0, %rax" << endl;
-    out << " je ternary_else_" << label << endl;
+    emit(" cmpq $0, %rax");
+    emit(" je ternary_else_" + std::to_string(label));
 
     // then
     exp->thenExp->accept(this);
-    out << " jmp ternary_end_" << label << endl;
+    emit(" jmp ternary_end_" + std::to_string(label));
 
     // else
-    out << "ternary_else_" << label << ":" << endl;
+    emit("ternary_else_" + std::to_string(label) + ":");
     exp->elseExp->accept(this);
 
-    out << "ternary_end_" << label << ":" << endl;
+    emit("ternary_end_" + std::to_string(label) + ":");
     return 0;
 }
 
 int GenCodeVisitor::visit(AssignStm* stm) {
+    currentLine = stm->line;
     stm->e->accept(this);
+    std::string vtype = getVarType(currentVars, stm->id);
     if (memoriaGlobal.count(stm->id))
-        out << " movq %rax, " << stm->id << "(%rip)" << endl;
+        emit(" movq %rax, " + stm->id + "(%rip)");
     else
-        //out << " movq %rax, " << memoria[stm->id] << "(%rbp)" << endl;
-        out << " movq %rax, " << env.lookup(stm->id) << "(%rbp)" << endl;
+        emit(" movq %rax, " + std::to_string(env.lookup(stm->id)) + "(%rbp)");
     if (currentVars.count(stm->id)) {
         currentVars[stm->id].value = constEval(stm->e);
     }
@@ -232,12 +309,12 @@ int GenCodeVisitor::visit(AssignStm* stm) {
 }
 
 int GenCodeVisitor::visit(PrintStm* stm) {
+    currentLine = stm->line;
     stm->e->accept(this);
-    out <<
-        " movq %rax, %rsi\n"
-        " leaq print_fmt(%rip), %rdi\n"
-        " movl $0, %eax\n"
-        " call printf@PLT\n";
+    emit(" movq %rax, %rsi");
+    emit(" leaq print_fmt(%rip), %rdi");
+    emit(" movl $0, %eax");
+    emit(" call printf@PLT");
     return 0;
 }
 
@@ -247,13 +324,17 @@ int GenCodeVisitor::visit(Body* b) {
     // Reservar espacio para las variables declaradas en este bloque
     int oldOffset    = offset;
     int reservaLocal = 0;
+    int blockLine = -1;
 
     for (auto dec : b->declarations) {
+        currentLine = dec->line;
+        if (blockLine == -1) blockLine = dec->line;
         for (const auto& var : dec->vars) {
+            int sz = sizeOfType(dec->type);
             int currentOffset = offset;
             env.add_var(var, currentOffset);
-            offset -= 8;
-            reservaLocal += 8;
+            offset -= sz;
+            reservaLocal += sz;
 
             // Capturar variables locales para visualización de stack
             if (entornoFuncion && currentFrame.label != "none") {
@@ -264,8 +345,12 @@ int GenCodeVisitor::visit(Body* b) {
             }
         }
     }
+    if (blockLine == -1 && !b->StmList.empty() && b->StmList.front()) {
+        blockLine = b->StmList.front()->line;
+    }
     if (reservaLocal > 0) {
-        out << " subq $" << reservaLocal << ", %rsp" << endl;
+        // Ajuste de stack considerado parte del prólogo del bloque (no de una línea específica)
+        emit(" subq $" + std::to_string(reservaLocal) + ", %rsp", -1);
     }
 
     // Inicializadores locales en orden de aparición
@@ -279,9 +364,9 @@ int GenCodeVisitor::visit(Body* b) {
             init->accept(this); // → %rax
 
             if (memoriaGlobal.count(varName)) {
-                out << " movq %rax, " << varName << "(%rip)" << endl;
+                emit(" movq %rax, " + varName + "(%rip)");
             } else {
-                out << " movq %rax, " << env.lookup(varName) << "(%rbp)" << endl;
+                emit(" movq %rax, " + std::to_string(env.lookup(varName)) + "(%rbp)");
             }
 
             // Si es un literal numérico, guardamos el valor simbólico
@@ -304,7 +389,7 @@ int GenCodeVisitor::visit(Body* b) {
     }
 
     if (reservaLocal > 0) {
-        out << " addq $" << reservaLocal << ", %rsp" << endl;
+        emit(" addq $" + std::to_string(reservaLocal) + ", %rsp", -1);
     }
     offset = oldOffset; // restaurar para bloques hermanos
     env.remove_level();
@@ -312,39 +397,43 @@ int GenCodeVisitor::visit(Body* b) {
 }
 
 int GenCodeVisitor::visit(IfStm* stm) {
+    currentLine = stm->line;
     int label = labelcont++;
     stm->condition->accept(this);
-    out << " cmpq $0, %rax" << endl;
-    out << " je else_" << label << endl;
+    emit(" cmpq $0, %rax");
+    emit(" je else_" + std::to_string(label));
     stm->then->accept(this);
-    out << " jmp endif_" << label << endl;
-    out << "else_" << label << ":" << endl;
+    emit(" jmp endif_" + std::to_string(label));
+    emit("else_" + std::to_string(label) + ":");
     if (stm->els) stm->els->accept(this);
-    out << "endif_" << label << ":" << endl;
+    emit("endif_" + std::to_string(label) + ":");
     return 0;
 }
 
 int GenCodeVisitor::visit(WhileStm* stm) {
+    currentLine = stm->line;
     int label = labelcont++;
-    out << "while_" << label << ":" << endl;
+    emit("while_" + std::to_string(label) + ":");
     stm->condition->accept(this);
-    out << " cmpq $0, %rax" << endl;
-    out << " je endwhile_" << label << endl;
+    emit(" cmpq $0, %rax");
+    emit(" je endwhile_" + std::to_string(label));
     stm->b->accept(this);
-    out << " jmp while_" << label << endl;
-    out << "endwhile_" << label << ":" << endl;
+    emit(" jmp while_" + std::to_string(label));
+    emit("endwhile_" + std::to_string(label) + ":");
     return 0;
 }
 
 int GenCodeVisitor::visit(ReturnStm* stm) {
+    currentLine = stm->line;
     if (stm->e) {
         stm->e->accept(this);
     }
-    out << " jmp .end_" << nombreFuncion << endl;
+    emit(" jmp .end_" + nombreFuncion);
     return 0;
 }
 
 int GenCodeVisitor::visit(ForStm* stm) {
+    currentLine = stm->line;
     env.add_level();
     // init
     if (stm->init) {
@@ -353,13 +442,13 @@ int GenCodeVisitor::visit(ForStm* stm) {
 
     int label = labelcont++;
 
-    out << "for_" << label << ":" << endl;
+    emit("for_" + std::to_string(label) + ":");
 
     // condición
     if (stm->condition) {
         stm->condition->accept(this);
-        out << " cmpq $0, %rax" << endl;
-        out << " je endfor_" << label << endl;
+        emit(" cmpq $0, %rax");
+        emit(" je endfor_" + std::to_string(label));
     }
 
     // cuerpo
@@ -372,56 +461,63 @@ int GenCodeVisitor::visit(ForStm* stm) {
         stm->step->accept(this);
     }
 
-    out << " jmp for_" << label << endl;
-    out << "endfor_" << label << ":" << endl;
+    emit(" jmp for_" + std::to_string(label));
+    emit("endfor_" + std::to_string(label) + ":");
     env.remove_level();
     return 0;
     
 }
 
 int GenCodeVisitor::visit(FunDec* f) {
+    currentLine = -1;
     entornoFuncion = true;
     //memoria.clear();
     env.clear();
     env.add_level();
     offset = -8;
     nombreFuncion = f->nombre;
+    snapshotCounter = 0;
     currentFrame = Frame{f->nombre, {}};
     snapshots.clear();
 
     vector<std::string> argRegs = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
 
-    out << ".globl " << f->nombre << endl;
-    out << f->nombre << ":" << endl;
-    out << " pushq %rbp" << endl;
-    out << " movq %rsp, %rbp" << endl;
+    emit(".globl " + f->nombre);
+    emit(f->nombre + ":");
+    emit(" pushq %rbp", -1);
+    emit(" movq %rsp, %rbp", -1);
 
     // Parámetros: asignar offsets y reservar espacio para guardarlos
     int size = f->Pnombres.size();
     int reservaArgs = size * 8;
     if (reservaArgs > 0) {
-        out << " subq $" << reservaArgs << ", %rsp" << endl;
+        emit(" subq $" + std::to_string(reservaArgs) + ", %rsp", -1);
     }
     for (int i = 0; i < size; i++) {
         int currentOffset = offset;
         env.add_var(f->Pnombres[i], currentOffset);
-        out << " movq " << argRegs[i] << ", " << currentOffset << "(%rbp)" << endl;
+        emit(" movq " + argRegs[i] + ", " + std::to_string(currentOffset) + "(%rbp)");
         offset -= 8;
         FrameVar fv{f->Pnombres[i], currentOffset, (i < (int)f->Ptipos.size() ? f->Ptipos[i] : "param"), "?"};
         currentFrame.vars.push_back(fv);
         currentVars[fv.name] = fv;
     }
 
+    // Snapshot inicial con los parámetros ya guardados
+    if (!f->Pnombres.empty()) {
+        snapshot(f->nombre + " params", 0);
+    }
+
     // Cuerpo completo (declaraciones con inicializadores y sentencias)
     f->cuerpo->accept(this);
 
-    out << ".end_" << f->nombre << ":" << endl;
-    out << "leave" << endl;
-    out << "ret" << endl;
+    emit(".end_" + f->nombre + ":", -1);
+    emit("leave", -1);
+    emit("ret", -1);
 
     entornoFuncion = false;
     env.remove_level();
-    snapshot(f->nombre + " (final)", 0);
+    // No snapshot final para evitar clutter en UI
     currentVars.clear();
     currentFrame = Frame{"none", {}};
     return 0;
@@ -433,10 +529,10 @@ int GenCodeVisitor::visit(FcallExp* exp) {
 
     for (int i = 0; i < size; i++) {
         exp->argumentos[i]->accept(this);
-        out << " movq %rax, " << argRegs[i] << endl;
+        emit(" movq %rax, " + argRegs[i]);
     }
 
-    out << " call " << exp->nombre << endl;
+    emit(" call " + exp->nombre);
     // RAX ya tiene retorno
     return 0;
 }
@@ -444,8 +540,8 @@ int GenCodeVisitor::visit(FcallExp* exp) {
 void GenCodeVisitor::snapshot(const std::string& label, int line) {
     if (currentFrame.label == "none") return;
 
-    // Insertamos un marcador de snapshot en el ASM para ubicar progreso
-    out << "# SNAP " << label;
+    // Marcador de inicio de snapshot: las instrucciones siguientes pertenecen a este idx
+    out << "# SNAPIDX " << snapshotCounter << " " << label;
     if (line > 0) {
         out << " line " << line;
     }
@@ -462,12 +558,50 @@ void GenCodeVisitor::snapshot(const std::string& label, int line) {
     std::sort(vars.begin(), vars.end(), [](const FrameVar& a, const FrameVar& b){
         return a.offset > b.offset;
     });
-    snapshots.push_back(Snapshot{label, vars, line});
+    snapshots.push_back(Snapshot{label, vars, line, snapshotCounter});
+    snapshotCounter++;
 }
 
 std::string GenCodeVisitor::constEval(Exp* e) {
+    // Evalúa expresiones simples para mostrar valores simbólicos en el stack
     if (auto num = dynamic_cast<NumberExp*>(e)) {
         return std::to_string(num->value);
+    }
+    if (auto b = dynamic_cast<BoolExp*>(e)) {
+        return std::to_string(b->valor);
+    }
+    if (auto id = dynamic_cast<IdExp*>(e)) {
+        auto it = currentVars.find(id->value);
+        if (it != currentVars.end()) {
+            return it->second.value;
+        }
+        return "?";
+    }
+    if (auto bin = dynamic_cast<BinaryExp*>(e)) {
+        std::string lstr = constEval(bin->left);
+        std::string rstr = constEval(bin->right);
+        long long lval, rval;
+        if (!tryParseLong(lstr, lval) || !tryParseLong(rstr, rval)) {
+            return "?";
+        }
+        long long res = 0;
+        switch (bin->op) {
+            case PLUS_OP:  res = lval + rval; break;
+            case MINUS_OP: res = lval - rval; break;
+            case MUL_OP:   res = lval * rval; break;
+            case DIV_OP:   if (rval == 0) return "?"; res = lval / rval; break;
+            case POW_OP:   // potencia simple iterativa
+                res = 1;
+                for (long long i = 0; i < rval; ++i) res *= lval;
+                break;
+            case LE_OP:    res = (lval < rval) ? 1 : 0; break;
+            default: return "?";
+        }
+        return std::to_string(res);
+    }
+    // Llamadas o casos no evaluables
+    if (dynamic_cast<FcallExp*>(e)) {
+        return "call"; // no evaluamos llamadas en compile-time
     }
     return "?";
 }

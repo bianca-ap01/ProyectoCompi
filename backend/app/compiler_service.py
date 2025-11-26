@@ -68,6 +68,7 @@ class CompilerService:
         asm_text = ""
         success = True
         stack_frames: List[dict] = []  # Estructura para el front; si el compilador genera JSON se rellena más abajo
+        asm_by_line = None
 
         try:
             # 1. Guardar el código fuente del usuario
@@ -154,6 +155,34 @@ class CompilerService:
             except Exception as e:
                 logs.append(f"No se pudo leer stack JSON: {e}")
 
+        # Construir mapa línea -> instrucciones ASM desde archivo generado por el visitor (si existe)
+        asm_map_path = stack_path + ".asm.json"
+        if os.path.exists(asm_map_path):
+            try:
+                with open(asm_map_path, "r") as am:
+                    asm_by_line = json.load(am)
+            except Exception as e:
+                logs.append(f"No se pudo leer ASM map: {e}")
+        elif asm_text:
+            # fallback usando SNAPIDX
+            asm_by_line = {}
+            current_line = None
+            for raw in asm_text.splitlines():
+                line = raw.strip("\n")
+                if line.startswith("# SNAPIDX"):
+                    parts = line.split("line")
+                    if len(parts) > 1:
+                        try:
+                            current_line = int(parts[-1].strip())
+                        except ValueError:
+                            current_line = None
+                    else:
+                        current_line = None
+                    continue
+                    continue
+                if current_line is not None:
+                    asm_by_line.setdefault(current_line, []).append(line)
+
         return {
             "success": success,
             "output": output_text,
@@ -161,4 +190,5 @@ class CompilerService:
             "logs": "\n".join(logs),
             "stack": stack_frames,   # Datos estructurados para pintar el stack en el frontend
             "asm": asm_text,
+            "asm_by_line": asm_by_line,
         }

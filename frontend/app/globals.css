@@ -151,4 +151,13 @@
     scrollbar-width: thin;
     scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
   }
+
+  /* Resaltado de línea activa en Monaco */
+  .code-active-line {
+    background-color: rgba(56, 189, 248, 0.16) !important;
+  }
+  .code-active-line-margin {
+    border-left: 2px solid rgba(56, 189, 248, 0.8);
+    margin-left: 4px;
+  }
 }

@@ -5,6 +5,7 @@ export interface CompilationResponse {
   logs: string
   stack?: StackFrame[]
   asm?: string
+  asm_by_line?: Record<number, string[]>
 }
 
 export type StackVar = {
@@ -19,6 +20,7 @@ export type StackFrame = {
   vars: StackVar[]
   sp?: number
   line?: number
+  idx?: number
 }
 
 const API_URL = process.env.NEXT_PUBLIC_COMPILER_API_URL || "http://localhost:8000"

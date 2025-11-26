@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Play, Activity, AlertCircle, Code2, Zap, FileCode2 } from "lucide-react"
 import { GrammarPanel } from "@/components/grammar-panel"
 import { MemoryVisualizer } from "@/components/memory-visualizer"
@@ -34,6 +34,9 @@ int main() {
   const [image, setImage] = useState("")
   const [stack, setStack] = useState<StackFrame[]>([])
   const [asm, setAsm] = useState("")
+  const [asmByLine, setAsmByLine] = useState<Record<number, string[]> | undefined>(undefined)
+  const [showFullAsm, setShowFullAsm] = useState(false)
+  const asmActiveRef = useRef<HTMLDivElement | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<"memory" | "logs">("memory")
   const [activeSnap, setActiveSnap] = useState(0)
@@ -49,6 +52,8 @@ int main() {
     setImage("")
     setStack([])
     setAsm("")
+    setAsmByLine(undefined)
+    setShowFullAsm(false)
     setActiveSnap(0)
 
     try {
@@ -57,20 +62,39 @@ int main() {
       setLogs(result.logs)
       setImage(result.image_b64 || "")
       setStack(result.stack || [])
-      setAsm(result.asm || "")
-      setActiveTab(result.stack && result.stack.length > 0 ? "memory" : "logs")
-    } catch (error) {
+    setAsm(result.asm || "")
+    setAsmByLine(result.asm_by_line)
+    setActiveTab(result.stack && result.stack.length > 0 ? "memory" : "logs")
+  } catch (error) {
       setOutput("Error de conexión con el servidor.")
     } finally {
       setLoading(false)
     }
   }
 
+  useEffect(() => {
+    if (asmActiveRef.current && !showFullAsm) {
+      asmActiveRef.current.scrollIntoView({ behavior: "smooth", block: "center" })
+    }
+  }, [activeSnap, showFullAsm, asmByLine])
+
+  useEffect(() => {
+    const editorPane = document.getElementById("code-editor-pane")
+    if (editorPane && stack[activeSnap]?.line) {
+      const line = stack[activeSnap].line!
+      const lines = editorPane.querySelectorAll(".cm-line")
+      const target = lines[line - 1] as HTMLElement | undefined
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" })
+      }
+    }
+  }, [activeSnap, stack])
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground text-sm">
       {/* Header */}
       <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-[1600px] mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-[1600px] mx-auto px-4 h-12 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent/10 border border-accent/20">
               <Code2 size={16} className="text-accent" />
@@ -82,7 +106,7 @@ int main() {
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-xs">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border text-[11px]">
               <span className={`w-1.5 h-1.5 rounded-full ${loading ? "bg-warning animate-pulse" : "bg-success"}`} />
               <span className="text-muted-foreground">{loading ? "Compilando..." : "Listo"}</span>
             </div>
@@ -90,7 +114,7 @@ int main() {
             <button
               onClick={handleRun}
               disabled={loading}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
                 loading
                   ? "bg-muted text-muted-foreground cursor-wait"
                   : "bg-accent hover:bg-accent/90 text-accent-foreground shadow-lg shadow-accent/20"
@@ -113,36 +137,8 @@ int main() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-[1600px] mx-auto p-4 md:p-6">
-        {/* Controles de paso a paso */}
-        <div className="flex items-center justify-between mb-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-3">
-            <span className="font-medium text-foreground">Modo línea por línea</span>
-            <span className="text-xs">
-              {totalSnapshots > 0
-                ? `Paso ${activeSnap + 1} de ${totalSnapshots}`
-                : "Sin pasos aún"}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={goPrev}
-              disabled={activeSnap === 0 || totalSnapshots === 0}
-              className="px-3 py-1.5 rounded-md border border-border bg-muted/40 text-foreground text-xs disabled:opacity-50"
-            >
-              ← Anterior
-            </button>
-            <button
-              onClick={goNext}
-              disabled={activeSnap + 1 >= totalSnapshots || totalSnapshots === 0}
-              className="px-3 py-1.5 rounded-md border border-border bg-muted/40 text-foreground text-xs disabled:opacity-50"
-            >
-              Siguiente →
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 h-[calc(100vh-7rem)]">
+      <main className="max-w-[1600px] mx-auto p-3 md:p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 min-h-[calc(100vh-7rem)]">
           {/* Code Editor Panel */}
           <div className="lg:col-span-1 rounded-xl bg-card border border-border overflow-hidden flex flex-col">
             <div className="flex items-center justify-between px-4 h-11 border-b border-border bg-muted/30">
@@ -163,7 +159,7 @@ int main() {
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
               <div className="flex-1 min-h-0">
-                <GrammarPanel code={code} setCode={setCode} />
+                <GrammarPanel code={code} setCode={setCode} activeLine={activeSnapshot?.line} />
               </div>
               <div className="border-t border-border bg-muted/20 h-32 px-3 py-2 overflow-auto scrollbar-transparent">
                 <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-1">Salida</div>
@@ -181,39 +177,123 @@ int main() {
                 <FileCode2 size={12} />
                 <span className="uppercase tracking-[0.15em]">ASM</span>
               </div>
-              {activeSnapshot?.line ? (
-                <div className="text-[11px] text-muted-foreground font-mono">
-                  Línea {activeSnapshot.line}
-                </div>
-              ) : null}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goPrev}
+                  disabled={activeSnap === 0 || totalSnapshots === 0}
+                  className="px-2 py-1 rounded border border-border bg-muted/40 text-foreground text-[11px] disabled:opacity-50"
+                >
+                  ←
+                </button>
+                <button
+                  onClick={goNext}
+                  disabled={activeSnap + 1 >= totalSnapshots || totalSnapshots === 0}
+                  className="px-2 py-1 rounded border border-border bg-muted/40 text-foreground text-[11px] disabled:opacity-50"
+                >
+                  →
+                </button>
+                {activeSnapshot?.line ? (
+                  <div className="text-[11px] text-muted-foreground font-mono">
+                    Línea {activeSnapshot.line}
+                  </div>
+                ) : null}
+                <button
+                  onClick={() => {
+                    const next = !showFullAsm
+                    setShowFullAsm(next)
+                    if (!next && stack.length > 0) {
+                      setActiveSnap(stack.length - 1)
+                    }
+                    if (next) {
+                      // al ver código completo, desplazarse al inicio
+                      const container = document.getElementById("asm-scroll-container")
+                      if (container) container.scrollTop = 0
+                    }
+                  }}
+                  className="text-[11px] px-2 py-1 rounded border border-border hover:bg-muted/40 text-foreground"
+                >
+                  {showFullAsm ? "Ver por línea" : "Ver código completo"}
+                </button>
+              </div>
             </div>
-            <div className="flex-1 p-4 overflow-auto min-h-[480px] scrollbar-transparent">
-              <pre className="font-mono text-xs text-accent-foreground whitespace-pre-wrap leading-relaxed bg-muted/20 rounded-md p-3 border border-border h-full">
+            <div
+              id="asm-scroll-container"
+              className="flex-1 p-4 overflow-y-auto max-h-[calc(100vh-14rem)] scrollbar-transparent"
+            >
+              <div className="space-y-3">
                 {(() => {
-                  const lines = (asm || "").split("\n")
-                  // Usa la posición ordinal de cada SNAP en el ASM (n-th SNAP ↔ n-th snapshot)
-                  const allMarkers = lines
-                    .map((l, idx) => ({ l, idx }))
-                    .filter(({ l }) => l.trim().startsWith("# SNAP"))
-                    .map(({ idx }) => idx)
+                  if (asmByLine && !showFullAsm) {
+                    const targetLine = stack[activeSnap]?.line
+                    const prolog: string[] = []
+                    if (asm) {
+                      const linesAll = (asm || "").split("\n")
+                      for (const l of linesAll) {
+                        if (l.startsWith("# SNAPIDX")) break
+                        if (l.trim().length > 0) prolog.push(l)
+                      }
+                    }
 
-                  const markerIndex = activeSnap + 1 < allMarkers.length ? activeSnap + 1 : allMarkers.length - 1
-                  const markerLineIdx = markerIndex >= 0 ? allMarkers[markerIndex] : -1
-                  const endIdx = markerLineIdx >= 0 ? markerLineIdx + 1 : lines.length
-                  const view = lines.slice(0, endIdx) // acumulado hasta el paso actual
-                  return view.map((line, i) => {
-                    const highlight = markerLineIdx >= 0 && i + (0 /* offset slice */) === markerLineIdx
-                    return (
+                    const labelByLine = (line: number, instrs: string[]) => {
+                      const snap = stack.find((s) => s.line === line)
+                      if (snap?.label) return snap.label
+                      const joined = instrs.join(" ")
+                      if (joined.includes("printf@PLT")) return "print"
+                      if (joined.includes("call ")) return "call"
+                      if (joined.includes("pushq %rbp") && joined.includes("movq %rsp, %rbp")) return "prolog"
+                      if (joined.includes(".globl")) return "func"
+                      return ""
+                    }
+
+                    let blocks = Object.entries(asmByLine)
+                      .map(([lineStr, instrs]) => ({
+                        line: parseInt(lineStr, 10),
+                        instrs,
+                        label: labelByLine(parseInt(lineStr, 10), instrs),
+                      }))
+                      .filter((b) => b.line >= 1) // omitimos línea -1 (prolog ya se muestra aparte)
+                    if (prolog.length > 0) {
+                      blocks.unshift({ line: -1, instrs: prolog })
+                    }
+                    blocks.sort((a, b) => a.line - b.line)
+                    if (targetLine !== undefined) {
+                      blocks = blocks.filter((b) => b.line <= targetLine)
+                    }
+                    let activeLine = targetLine
+                    if (activeLine === undefined && blocks.length > 0) {
+                      activeLine = blocks[blocks.length - 1].line
+                    }
+                    return blocks.map((blk, idx) => (
                       <div
-                        key={i}
-                        className={highlight ? "bg-sky-500/20 px-1 rounded text-slate-900" : undefined}
+                        key={`${blk.line}-${idx}`}
+                        className={`rounded-lg border border-border bg-muted/30 p-3 ${
+                          activeLine === blk.line ? "ring-2 ring-accent/60" : ""
+                        }`}
+                        ref={activeLine === blk.line ? (el) => (asmActiveRef.current = el) : undefined}
                       >
-                        {line || " "}
+                        <div className="flex items-center justify-between text-[11px] font-mono uppercase text-muted-foreground mb-2">
+                          <span>Línea {blk.line}</span>
+                          <span className="text-foreground font-semibold">{blk.label || ""}</span>
+                        </div>
+                        <pre className="font-mono text-xs text-accent-foreground whitespace-pre-wrap leading-relaxed">
+                          {blk.instrs.length ? blk.instrs.join("\n") : "// sin instrucciones"}
+                        </pre>
                       </div>
-                    )
-                  })
+                    ))
+                  }
+
+                  // Si no hay asm_by_line, mostrar ASM completo
+                  return (
+                    <div className="rounded-lg border border-border bg-muted/30 p-3">
+                      <pre className="font-mono text-xs text-accent-foreground whitespace-pre-wrap leading-relaxed">
+                        {(asm || "")
+                          .split("\n")
+                          .filter((l) => !l.trim().startsWith("# SNAPIDX"))
+                          .join("\n") || "// sin instrucciones"}
+                      </pre>
+                    </div>
+                  )
                 })()}
-              </pre>
+              </div>
             </div>
           </div>
 
