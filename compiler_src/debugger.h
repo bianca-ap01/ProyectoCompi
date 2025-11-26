@@ -8,6 +8,7 @@
 #include <vector>
 #include <algorithm> // <-- ¡Necesario para std::find!
 #include <unordered_set>
+#include <unordered_map>
 using namespace std;
 
 class DebuggerVisitor : public Visitor {
@@ -47,6 +48,7 @@ public:
             // Usamos un set para no imprimir variables repetidas
             // y un mapa para encontrar la última instancia válida (shadowing)
             unordered_set<string> printedVars;
+#include <unordered_map>
             unordered_map<string, int> lastIndex;
             
             for (int k = 0; k < visibleVars.size(); ++k) {
@@ -319,9 +321,16 @@ int visit(VarDec* vd) override {
         if (stm->e) {
             stm->e->accept(this);
         }
+        return 0;
     }
 
     int visit(ForStm* s) override {
+        // Guardar el estado visible y de scope antes del for
+        vector<string> savedVisibleVars = visibleVars;
+        vector<string> savedScopeVars = currentScopeVars;
+        int savedOffset = offset;
+        currentScopeVars.clear();
+
         // 1. Ejecutar Inicialización (ej: int i = 0)
         envOffsets.add_level();
         envValues.add_level();
@@ -355,6 +364,9 @@ int visit(VarDec* vd) override {
         }
         envOffsets.remove_level();
         envValues.remove_level();
+        offset = savedOffset;
+        visibleVars = savedVisibleVars;
+        currentScopeVars = savedScopeVars;
         return 0;
     }
 };
