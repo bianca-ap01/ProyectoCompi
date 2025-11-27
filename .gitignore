@@ -16,3 +16,6 @@ frontend/package-lock.json
 compiler_src/inputs/*_stack.json*
 compiler_src/inputs/*.tokens.txt
 .DS_Store
+.vscode/
+*.log
+.idea/
