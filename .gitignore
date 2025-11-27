@@ -21,3 +21,4 @@ compiler_src/inputs/*.tokens.txt
 .vscode/
 *.log
 .idea/
+backend/app/__pycache__/
