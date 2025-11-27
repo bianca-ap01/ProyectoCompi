@@ -116,8 +116,27 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
         const lineVal = s.line ?? -1;
         return func !== "main" || lineVal <= 0;
     };
-    const prologSnaps = indexedSnaps.filter(({ snap })=>isProlog(snap) && !((snap.label || "").toLowerCase() === "prolog" && (snap.vars?.length ?? 0) === 0 && (snap.func || "").toLowerCase() === "main"));
-    const mainSnaps = indexedSnaps.filter(({ snap })=>!isProlog(snap));
+    const prologSnaps = (()=>{
+        const seen = new Set();
+        const list = [];
+        indexedSnaps.forEach(({ snap, idx })=>{
+            if (!isProlog(snap)) return;
+            const key = `${(snap.func || "global").toLowerCase()}|${(snap.label || "").toLowerCase()}|${snap.line ?? -1}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            list.push({
+                snap,
+                idx
+            });
+        });
+        return list;
+    })();
+    const mainSnaps = indexedSnaps.filter(({ snap })=>!isProlog(snap)).sort((a, b)=>{
+        const la = a.snap.line ?? Number.MAX_SAFE_INTEGER;
+        const lb = b.snap.line ?? Number.MAX_SAFE_INTEGER;
+        if (la !== lb) return la - lb;
+        return a.idx - b.idx;
+    });
     const diffForIndex = (idx)=>{
         const snap = snaps[idx];
         const prevSnap = idx > 0 ? snaps[idx - 1] : undefined;
@@ -204,12 +223,12 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                         size: 20
                     }, void 0, false, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 91,
+                        lineNumber: 101,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 90,
+                    lineNumber: 100,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -217,13 +236,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                     children: "La visualización de memoria aparecerá aquí..."
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 93,
+                    lineNumber: 103,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/memory-visualizer.tsx",
-            lineNumber: 89,
+            lineNumber: 99,
             columnNumber: 7
         }, this);
     }
@@ -242,7 +261,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                     children: "Código / Snapshots"
                                 }, void 0, false, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 103,
+                                    lineNumber: 113,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -252,13 +271,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 104,
+                                    lineNumber: 114,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/memory-visualizer.tsx",
-                            lineNumber: 102,
+                            lineNumber: 112,
                             columnNumber: 11
                         }, this),
                         [
@@ -278,7 +297,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                         children: section.title
                                     }, void 0, false, {
                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                        lineNumber: 110,
+                                        lineNumber: 120,
                                         columnNumber: 19
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -300,7 +319,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                 children: label
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 128,
+                                                                lineNumber: 138,
                                                                 columnNumber: 29
                                                             }, this),
                                                             funcTag && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -308,13 +327,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                 children: funcTag
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 129,
+                                                                lineNumber: 139,
                                                                 columnNumber: 41
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 127,
+                                                        lineNumber: 137,
                                                         columnNumber: 27
                                                     }, this),
                                                     (diff.added.length > 0 || diff.updated.size > 0) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -327,14 +346,14 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                         children: "+ "
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                                        lineNumber: 135,
+                                                                        lineNumber: 145,
                                                                         columnNumber: 35
                                                                     }, this),
                                                                     diff.added.join(", ")
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 134,
+                                                                lineNumber: 144,
                                                                 columnNumber: 33
                                                             }, this),
                                                             diff.updated.size > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -344,44 +363,44 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                         children: "↻ "
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                                        lineNumber: 141,
+                                                                        lineNumber: 151,
                                                                         columnNumber: 35
                                                                     }, this),
                                                                     Array.from(diff.updated).join(", ")
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 140,
+                                                                lineNumber: 150,
                                                                 columnNumber: 33
                                                             }, this)
                                                         ]
                                                     }, void 0, true, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 132,
+                                                        lineNumber: 142,
                                                         columnNumber: 29
                                                     }, this)
                                                 ]
                                             }, `${label}-${idx}`, true, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 117,
+                                                lineNumber: 127,
                                                 columnNumber: 25
                                             }, this);
                                         })
                                     }, void 0, false, {
                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                        lineNumber: 111,
+                                        lineNumber: 121,
                                         columnNumber: 19
                                     }, this)
                                 ]
                             }, section.title, true, {
                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                lineNumber: 109,
+                                lineNumber: 119,
                                 columnNumber: 17
                             }, this))
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 101,
+                    lineNumber: 111,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -403,18 +422,18 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 163,
+                                            lineNumber: 173,
                                             columnNumber: 21
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 160,
+                                    lineNumber: 170,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                lineNumber: 159,
+                                lineNumber: 169,
                                 columnNumber: 15
                             }, this),
                             (changes.added.length > 0 || changes.updated.size > 0) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -428,7 +447,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                 children: "Nuevas:"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 173,
+                                                lineNumber: 183,
                                                 columnNumber: 23
                                             }, this),
                                             " ",
@@ -436,7 +455,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                        lineNumber: 172,
+                                        lineNumber: 182,
                                         columnNumber: 21
                                     }, this),
                                     changes.updated.size > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -446,7 +465,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                 children: "Actualizadas:"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 179,
+                                                lineNumber: 189,
                                                 columnNumber: 23
                                             }, this),
                                             " ",
@@ -454,13 +473,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                        lineNumber: 178,
+                                        lineNumber: 188,
                                         columnNumber: 21
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                lineNumber: 170,
+                                lineNumber: 180,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -477,7 +496,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Var"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 189,
+                                                        lineNumber: 199,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -485,7 +504,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Addr"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 190,
+                                                        lineNumber: 200,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -493,18 +512,18 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Val"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 191,
+                                                        lineNumber: 201,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 188,
+                                                lineNumber: 198,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 187,
+                                            lineNumber: 197,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("tbody", {
@@ -520,7 +539,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                         children: v.name
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                                        lineNumber: 205,
+                                                                        lineNumber: 215,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -528,13 +547,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                         children: v.type || ""
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                                        lineNumber: 206,
+                                                                        lineNumber: 216,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 204,
+                                                                lineNumber: 214,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -542,7 +561,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                 children: v.offset !== undefined ? `${v.offset}(%rbp)` : ""
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 208,
+                                                                lineNumber: 218,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -550,13 +569,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                 children: v.value || "?"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 211,
+                                                                lineNumber: 221,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, `${v.name}-${i}`, true, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 196,
+                                                        lineNumber: 206,
                                                         columnNumber: 23
                                                     }, this)),
                                                 current.vars.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("tr", {
@@ -566,53 +585,53 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Sin variables en este frame"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 216,
+                                                        lineNumber: 226,
                                                         columnNumber: 25
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                                    lineNumber: 215,
+                                                    lineNumber: 225,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 194,
+                                            lineNumber: 204,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 186,
+                                    lineNumber: 196,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                lineNumber: 185,
+                                lineNumber: 195,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 158,
+                        lineNumber: 168,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "text-sm text-slate-400",
                         children: "Sin snapshot seleccionado."
                     }, void 0, false, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 226,
+                        lineNumber: 236,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 156,
+                    lineNumber: 166,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/memory-visualizer.tsx",
-            lineNumber: 100,
+            lineNumber: 110,
             columnNumber: 7
         }, this);
     }
@@ -627,12 +646,12 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                     children: "Memoria / Stack (imagen)"
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 237,
+                    lineNumber: 247,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/memory-visualizer.tsx",
-                lineNumber: 236,
+                lineNumber: 246,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -645,23 +664,23 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                         className: "shadow-2xl shadow-black/40 border border-white/10 rounded-2xl max-w-full h-auto"
                     }, void 0, false, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 242,
+                        lineNumber: 252,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 241,
+                    lineNumber: 251,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/memory-visualizer.tsx",
-                lineNumber: 240,
+                lineNumber: 250,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/memory-visualizer.tsx",
-        lineNumber: 235,
+        lineNumber: 245,
         columnNumber: 5
     }, this);
 }

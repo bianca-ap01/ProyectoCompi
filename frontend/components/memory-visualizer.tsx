@@ -23,16 +23,26 @@ export function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setA
     return func !== "main" || lineVal <= 0
   }
 
-  const prologSnaps = indexedSnaps.filter(
-    ({ snap }) =>
-      isProlog(snap) &&
-      !(
-        (snap.label || "").toLowerCase() === "prolog" &&
-        (snap.vars?.length ?? 0) === 0 &&
-        (snap.func || "").toLowerCase() === "main"
-      ),
-  )
-  const mainSnaps = indexedSnaps.filter(({ snap }) => !isProlog(snap))
+  const prologSnaps = (() => {
+    const seen = new Set<string>()
+    const list: typeof indexedSnaps = []
+    indexedSnaps.forEach(({ snap, idx }) => {
+      if (!isProlog(snap)) return
+      const key = `${(snap.func || "global").toLowerCase()}|${(snap.label || "").toLowerCase()}|${snap.line ?? -1}`
+      if (seen.has(key)) return
+      seen.add(key)
+      list.push({ snap, idx })
+    })
+    return list
+  })()
+  const mainSnaps = indexedSnaps
+    .filter(({ snap }) => !isProlog(snap))
+    .sort((a, b) => {
+      const la = a.snap.line ?? Number.MAX_SAFE_INTEGER
+      const lb = b.snap.line ?? Number.MAX_SAFE_INTEGER
+      if (la !== lb) return la - lb
+      return a.idx - b.idx
+    })
 
   const diffForIndex = (idx: number) => {
     const snap = snaps[idx]

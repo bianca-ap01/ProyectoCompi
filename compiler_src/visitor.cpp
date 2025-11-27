@@ -309,38 +309,40 @@ int GenCodeVisitor::visit(IdExp* exp) {
 }
 
 int GenCodeVisitor::visit(BinaryExp* exp) {
-    string lstr = constEval(exp->left);
-    string rstr = constEval(exp->right);
-    long long lval, rval;
-    if (tryParseLong(lstr, lval) && tryParseLong(rstr, rval)) {
-        long long res = 0;
-        bool ok = true;
-        switch (exp->op) {
-            case PLUS_OP:  res = lval + rval; break;
-            case MINUS_OP: res = lval - rval; break;
-            case MUL_OP:   res = lval * rval; break;
-            case DIV_OP:   if (rval == 0) ok = false; else res = lval / rval; break;
-            case POW_OP:
-                if (rval < 0) ok = false;
-                else {
-                    res = 1;
-                    for (long long i = 0; i < rval; ++i) res *= lval;
-                }
-                break;
-            case LE_OP:    res = (lval < rval) ? 1 : 0; break;
-            default: ok = false; break;
-        }
-        if (ok) {
-            // marcar la expresión como constante evaluada
-            exp->cont = 1;
-            exp->valor = static_cast<int>(res);
-            // emitir valor inmediato (usar movl si cabe en 32 bits)
-            if (res >= INT32_MIN && res <= INT32_MAX) {
-                emit(" movl $" + to_string(res) + ", %eax");
-            } else {
-                emit(" movq $" + to_string(res) + ", %rax");
+    bool leftLit  = dynamic_cast<NumberExp*>(exp->left) || dynamic_cast<BoolExp*>(exp->left);
+    bool rightLit = dynamic_cast<NumberExp*>(exp->right) || dynamic_cast<BoolExp*>(exp->right);
+    if (leftLit && rightLit) {
+        string lstr = constEval(exp->left);
+        string rstr = constEval(exp->right);
+        long long lval, rval;
+        if (tryParseLong(lstr, lval) && tryParseLong(rstr, rval)) {
+            long long res = 0;
+            bool ok = true;
+            switch (exp->op) {
+                case PLUS_OP:  res = lval + rval; break;
+                case MINUS_OP: res = lval - rval; break;
+                case MUL_OP:   res = lval * rval; break;
+                case DIV_OP:   if (rval == 0) ok = false; else res = lval / rval; break;
+                case POW_OP:
+                    if (rval < 0) ok = false;
+                    else {
+                        res = 1;
+                        for (long long i = 0; i < rval; ++i) res *= lval;
+                    }
+                    break;
+                case LE_OP:    res = (lval < rval) ? 1 : 0; break;
+                default: ok = false; break;
             }
-            return 0;
+            if (ok) {
+                exp->cont = 1;
+                exp->valor = static_cast<int>(res);
+                if (res >= INT32_MIN && res <= INT32_MAX) {
+                    emit(" movl $" + to_string(res) + ", %eax");
+                } else {
+                    emit(" movq $" + to_string(res) + ", %rax");
+                }
+                return 0;
+            }
         }
     }
     
