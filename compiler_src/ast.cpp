@@ -34,7 +34,7 @@ NumberExp::NumberExp(long long v, double fv, bool isFloatLiteral, bool isLongLit
 NumberExp::~NumberExp() {}
 
 // ------------------ IdExp ------------------
-IdExp::IdExp(string v) : value(std::move(v)) {}
+IdExp::IdExp(string v) : value(move(v)) {}
 
 IdExp::~IdExp() {}
 
@@ -53,7 +53,7 @@ PrintStm::~PrintStm() {
 
 // ------------------ AssignStm ------------------
 AssignStm::AssignStm(string variable, Exp* expresion, int lineNo)
-    : id(std::move(variable)), e(expresion) {
+    : id(move(variable)), e(expresion) {
     line = lineNo;
 }
 

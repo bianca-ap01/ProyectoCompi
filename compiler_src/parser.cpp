@@ -45,7 +45,7 @@ bool Parser::match(Token::Type ttype) {
     return false;
 }
 
-void Parser::error(const std::string& msg) {
+void Parser::error(const string& msg) {
     cerr << "Error de parseo: " << msg << endl;
     throw runtime_error(msg);
 }
@@ -59,7 +59,7 @@ bool Parser::isTypeStart() const {
            check(Token::LONG) || check(Token::FLOAT);
 }
 
-TypeKind Parser::parseTypeSpec(std::string& outType) {
+TypeKind Parser::parseTypeSpec(string& outType) {
     if (match(Token::INT)) {
         outType = "int";
         return TYPE_INT;
@@ -174,7 +174,7 @@ void Parser::parseTopLevelDeclaration(Program* prog) {
 
 void Parser::parseParamList(FunDec* fd) {
     while (true) {
-        std::string ptype;
+        string ptype;
         TypeKind pkind = parseTypeSpec(ptype);
         (void)pkind; // no usamos aún el TypeKind del parámetro
 
@@ -316,14 +316,14 @@ void Parser::parseForIntoBody(Body* body) {
         error("Por ahora solo se soporta 'for' con inicialización 'int id = expr;'");
     }
 
-    std::string itype;
+    string itype;
     TypeKind ikind = parseTypeSpec(itype);
     int declLine = previous ? previous->line : 0;
 
     if (!match(Token::ID)) {
         error("Se esperaba identificador en la inicialización del for");
     }
-    std::string varName = previous->text;
+    string varName = previous->text;
     int initLine = previous ? previous->line : declLine;
 
     if (!match(Token::ASSIGN)) {
@@ -350,7 +350,7 @@ void Parser::parseForIntoBody(Body* body) {
     if (!match(Token::ID)) {
         error("Se esperaba identificador en la condición del for");
     }
-    std::string condVar = previous->text;
+    string condVar = previous->text;
 
     if (!match(Token::LE)) {
         error("Por ahora solo se soporta condición 'var < expr' en for");
@@ -366,7 +366,7 @@ void Parser::parseForIntoBody(Body* body) {
     if (!match(Token::ID)) {
         error("Se esperaba identificador en el incremento del for");
     }
-    std::string stepVar = previous->text;
+    string stepVar = previous->text;
     int stepLine = previous ? previous->line : declLine;
 
     if (!match(Token::PLUS) || !match(Token::PLUS)) {
@@ -526,7 +526,7 @@ Stm* Parser::parseAssignOrExprStatement() {
     if (!match(Token::ID)) {
         error("Se esperaba identificador al inicio de la sentencia");
     }
-    std::string name = previous->text;
+    string name = previous->text;
     int lineNo = previous ? previous->line : 0;
 
     if (!match(Token::ASSIGN)) {
@@ -636,7 +636,7 @@ Exp* Parser::parseFactor() {
 
 Exp* Parser::parsePrimary() {
     if (match(Token::NUM)) {
-        std::string lex = previous->text;
+        string lex = previous->text;
         bool isLong = false;
         bool isUnsigned = false;
         bool isFloat = false;
@@ -655,26 +655,26 @@ Exp* Parser::parsePrimary() {
             }
         }
 
-        if (lex.find('.') != std::string::npos) {
+        if (lex.find('.') != string::npos) {
             isFloat = true;
         }
 
         if (isFloat) {
-            double fval = std::stod(lex);
+            double fval = stod(lex);
             long long ival = static_cast<long long>(fval);
             return new NumberExp(ival, fval, true, false, false);
         } else {
-            long long ival = std::stoll(lex);
+            long long ival = stoll(lex);
             return new NumberExp(ival, static_cast<double>(ival), false, isLong, isUnsigned);
         }
     }
 
     if (match(Token::ID)) {
-        std::string name = previous->text;
+        string name = previous->text;
 
         // Posible llamada a función: id '(' args ')'
         if (match(Token::LPAREN)) {
-            std::vector<Exp*> args;
+            vector<Exp*> args;
             if (!check(Token::RPAREN)) {
                 // parsear 1 o más argumentos
                 args.push_back(parseExpression());

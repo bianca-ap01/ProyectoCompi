@@ -31,7 +31,7 @@ Token* Scanner::nextToken() {
         int tokenCol  = col;
 
         // Saltar espacios en blanco
-        if (std::isspace(static_cast<unsigned char>(c))) {
+        if (isspace(static_cast<unsigned char>(c))) {
             advanceChar();
             continue;
         }
@@ -93,19 +93,19 @@ Token* Scanner::nextToken() {
         }
 
         // Números (solo enteros por ahora)
-        if (std::isdigit(static_cast<unsigned char>(c))) {
+        if (isdigit(static_cast<unsigned char>(c))) {
             advanceChar();
             while (current < static_cast<int>(input.size()) &&
-                   std::isdigit(static_cast<unsigned char>(input[current]))) {
+                   isdigit(static_cast<unsigned char>(input[current]))) {
                 advanceChar();
             }
             if (current < static_cast<int>(input.size()) &&
                 input[current] == '.' &&
                 current + 1 < static_cast<int>(input.size()) &&
-                std::isdigit(static_cast<unsigned char>(input[current + 1]))) {
+                isdigit(static_cast<unsigned char>(input[current + 1]))) {
                 advanceChar(); // consumir '.'
                 while (current < static_cast<int>(input.size()) &&
-                       std::isdigit(static_cast<unsigned char>(input[current]))) {
+                       isdigit(static_cast<unsigned char>(input[current]))) {
                     advanceChar();
                 }
             }
@@ -119,14 +119,14 @@ Token* Scanner::nextToken() {
         }
 
         // Identificadores y palabras clave
-        if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
+        if (isalpha(static_cast<unsigned char>(c)) || c == '_') {
             advanceChar();
             while (current < static_cast<int>(input.size()) &&
-                   (std::isalnum(static_cast<unsigned char>(input[current])) ||
+                   (isalnum(static_cast<unsigned char>(input[current])) ||
                     input[current] == '_')) {
                 advanceChar();
             }
-            std::string lex = input.substr(first, current - first);
+            string lex = input.substr(first, current - first);
 
             if (lex == "return")   return new Token(Token::RETURN,  lex[0], tokenLine, tokenCol);
             if (lex == "if")       return new Token(Token::IF,      lex[0], tokenLine, tokenCol);
@@ -184,10 +184,10 @@ Token* Scanner::nextToken() {
 }
 
 // Versión sencilla de ejecutar_scanner (opcional)
-int ejecutar_scanner(Scanner* scanner, const std::string& inputFile) {
-    std::ofstream outFile(inputFile + ".tokens.txt");
+int ejecutar_scanner(Scanner* scanner, const string& inputFile) {
+    ofstream outFile(inputFile + ".tokens.txt");
     if (!outFile.is_open()) {
-        std::cerr << "No se pudo abrir archivo de salida de tokens\n";
+        cerr << "No se pudo abrir archivo de salida de tokens\n";
         return 1;
     }
 

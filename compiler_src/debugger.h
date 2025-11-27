@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include <algorithm> // <-- ¡Necesario para std::find!
+#include <algorithm> // <-- ¡Necesario para 
 #include <unordered_set>
 #include <unordered_map>
 using namespace std;

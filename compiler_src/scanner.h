@@ -3,10 +3,10 @@
 
 #include <string>
 #include "token.h"
-
+using namespace std;
 class Scanner {
 private:
-    std::string input;
+    string input;
     int first;
     int current;
     int line;
@@ -20,6 +20,6 @@ public:
 };
 
 // Ejecutar scanner (opcional, para depurar)
-int ejecutar_scanner(Scanner* scanner, const std::string& inputFile);
+int ejecutar_scanner(Scanner* scanner, const string& inputFile);
 
 #endif // SCANNER_H

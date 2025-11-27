@@ -44,7 +44,7 @@ public:
         return NOTYPE;
     }
 
-    static std::string type_to_string(TType t) {
+    static string type_to_string(TType t) {
         switch (t) {
             case VOID:  return "void";
             case INT:   return "int";

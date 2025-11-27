@@ -3,7 +3,7 @@
 
 #include <string>
 #include <ostream>
-
+using namespace std;
 class Token {
 public:
     // Tipos de token
@@ -56,16 +56,16 @@ public:
     };
 
     Type type;
-    std::string text;
+    string text;
     int line;
     int col;
 
     Token(Type type, int line = -1, int col = -1);
     Token(Type type, char c, int line = -1, int col = -1);
-    Token(Type type, const std::string& source, int first, int last, int line = -1, int col = -1);
+    Token(Type type, const string& source, int first, int last, int line = -1, int col = -1);
 
-    friend std::ostream& operator<<(std::ostream& outs, const Token& tok);
-    friend std::ostream& operator<<(std::ostream& outs, const Token* tok);
+    friend ostream& operator<<(ostream& outs, const Token& tok);
+    friend ostream& operator<<(ostream& outs, const Token* tok);
 };
 
 #endif // TOKEN_H

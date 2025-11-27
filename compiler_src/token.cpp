@@ -1,16 +1,16 @@
 #include "token.h"
 #include <iostream>
-
+using namespace std;
 Token::Token(Type type, int line, int col)
     : type(type), text(""), line(line), col(col) {}
 
 Token::Token(Type type, char c, int line, int col)
     : type(type), text(1, c), line(line), col(col) {}
 
-Token::Token(Type type, const std::string& source, int first, int last, int line, int col)
+Token::Token(Type type, const string& source, int first, int last, int line, int col)
     : type(type), text(source.substr(first, last - first)), line(line), col(col) {}
 
-std::ostream& operator<<(std::ostream& outs, const Token& tok) {
+ostream& operator<<(ostream& outs, const Token& tok) {
     switch (tok.type) {
         case Token::PLUS:      outs << "TOKEN(PLUS, \""      << tok.text << "\")"; break;
         case Token::MINUS:     outs << "TOKEN(MINUS, \""     << tok.text << "\")"; break;
@@ -58,7 +58,7 @@ std::ostream& operator<<(std::ostream& outs, const Token& tok) {
     return outs;
 }
 
-std::ostream& operator<<(std::ostream& outs, const Token* tok) {
+ostream& operator<<(ostream& outs, const Token* tok) {
     if (!tok) return outs << "TOKEN(NULL)";
     return outs << *tok;
 }

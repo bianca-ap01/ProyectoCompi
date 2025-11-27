@@ -87,7 +87,7 @@ private:
 
 public:
     TypeChecker();
-
+    int locales;
     // Método principal de verificación
     void typecheck(Program* program);
 

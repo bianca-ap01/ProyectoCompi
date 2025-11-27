@@ -32,20 +32,20 @@ class FunDec;
 class ForStm;
 
 struct FrameVar {
-    std::string name;
+    string name;
     int offset;
-    std::string type;
-    std::string value;
+    string type;
+    string value;
 };
 
 struct Frame {
-    std::string label;
-    std::vector<FrameVar> vars;
+    string label;
+    vector<FrameVar> vars;
 };
 
 struct Snapshot {
-    std::string label;
-    std::vector<FrameVar> vars;
+    string label;
+    vector<FrameVar> vars;
     int line;
     int idx;
 };
@@ -80,27 +80,27 @@ public:
 // Visitor que genera código asm x86-64
 class GenCodeVisitor : public Visitor {
 private:
-    std::ostream& out;
-    std::string stackPath;
+    ostream& out;
+    string stackPath;
 
 public:
-    GenCodeVisitor(std::ostream& out, const std::string& stackPath = "") : out(out), stackPath(stackPath) {}
+    GenCodeVisitor(ostream& out, const string& stackPath = "") : out(out), stackPath(stackPath) {}
 
     int generar(Program* program);
     Environment<int> env;                       // offsets
-    Environment<std::string> typeEnv;           // tipos (locals)
+    Environment<string> typeEnv;           // tipos (locals)
     unordered_map<string, bool> memoriaGlobal;  // globals: nombre -> bool
-    unordered_map<string, std::string> globalTypes;
+    unordered_map<string, string> globalTypes;
     int    offset        = -8;
     int    labelcont     = 0;
     bool   entornoFuncion = false;
     string nombreFuncion;
     Frame  globalFrame{"globals"};
     Frame  currentFrame{"none"};
-    std::vector<Snapshot> snapshots;
-    std::map<std::string, FrameVar> currentVars;
+    vector<Snapshot> snapshots;
+    map<string, FrameVar> currentVars;
     int snapshotCounter = 0;
-    std::map<int, std::vector<std::string>> asmByLine;
+    map<int, vector<string>> asmByLine;
     int currentLine = -1;
 
     // Expresiones
@@ -130,9 +130,9 @@ private:
     int preAsignarOffsets(Body* body, int startOffset);
     void saveStack();
     void saveAsmMap();
-    void emit(const std::string& instr, int lineOverride = -1);
-    void snapshot(const std::string& label, int line = -1);
-    std::string constEval(Exp* e);
+    void emit(const string& instr, int lineOverride = -1);
+    void snapshot(const string& label, int line = -1);
+    string constEval(Exp* e);
 };
 
 #endif // VISITOR_H

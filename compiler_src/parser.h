@@ -16,11 +16,11 @@ private:
     bool match(Token::Type ttype);
     bool check(Token::Type ttype) const;
     bool isAtEnd() const;
-    void error(const std::string& msg);
+    void error(const string& msg);
 
     // Tipos
     bool     isTypeStart() const;
-    TypeKind parseTypeSpec(std::string& outType);
+    TypeKind parseTypeSpec(string& outType);
 
     // Nivel programa / top-level
     void     parseTopLevelDeclaration(Program* prog);
