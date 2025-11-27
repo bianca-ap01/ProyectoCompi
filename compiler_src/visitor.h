@@ -1,5 +1,6 @@
 #ifndef VISITOR_H
 #define VISITOR_H
+// visitor de generacion de codigo asm y snapshots de stack
 
 #include "ast.h"
 #include <list>
@@ -32,6 +33,7 @@ class FunDec;
 class ForStm;
 
 struct FrameVar {
+    // variable con nombre, offset en stack, tipo y valor simbolico
     string name;
     int offset;
     string type;
@@ -39,15 +41,18 @@ struct FrameVar {
 };
 
 struct Frame {
+    // frame activo (funcion) con su etiqueta y variables visibles
     string label;
     vector<FrameVar> vars;
 };
 
 struct Snapshot {
+    // captura de estado del frame en un punto del codigo
     string label;
     vector<FrameVar> vars;
     int line;
     int idx;
+    string func;
 };
 
 // Interfaz de Visitor
@@ -88,20 +93,20 @@ public:
 
     int generar(Program* program);
     Environment<int> env;                       // offsets
-    Environment<string> typeEnv;           // tipos (locals)
+    Environment<string> typeEnv;                // tipos (locals)
     unordered_map<string, bool> memoriaGlobal;  // globals: nombre -> bool
-    unordered_map<string, string> globalTypes;
-    int    offset        = -8;
-    int    labelcont     = 0;
-    bool   entornoFuncion = false;
+    unordered_map<string, string> globalTypes;   // tipos de globales
+    int    offset        = -8;                   // offset actual en stack
+    int    labelcont     = 0;                    // contador para labels unicos
+    bool   entornoFuncion = false;               // estamos generando dentro de funcion
     string nombreFuncion;
     Frame  globalFrame{"globals"};
     Frame  currentFrame{"none"};
-    vector<Snapshot> snapshots;
-    map<string, FrameVar> currentVars;
+    vector<Snapshot> snapshots;                  // capturas de stack para el front
+    map<string, FrameVar> currentVars;           // valores simbolicos actuales
     int snapshotCounter = 0;
-    map<int, vector<string>> asmByLine;
-    int currentLine = -1;
+    map<int, vector<string>> asmByLine;          // linea -> instrucciones
+    int currentLine = -1;                        // linea fuente actual para emit
 
     // Expresiones
     int visit(BinaryExp* exp) override;
@@ -126,21 +131,15 @@ public:
     int visit(ForStm* stm) override;
 
 private:
-    // Recorrido previo para asignar offsets a todas las variables locales (incluidas anidadas)
-    int preAsignarOffsets(Body* body, int startOffset);
-    void saveStack();
-    void saveAsmMap();
-    void emit(const string& instr, int lineOverride = -1);
-    void snapshot(const string& label, int line = -1);
-    string constEval(Exp* e);
+    int preAsignarOffsets(Body* body, int startOffset);          // asigna offsets antes de generar
+    void saveStack();                                            // guarda snapshots de stack en json
+    void saveAsmMap();                                           // guarda asm por linea en stackpath+.asm.json
+    void emit(const string& instr, int lineOverride = -1);       // escribe asm y lo asocia a linea actual
+    void snapshot(const string& label, int line = -1);           // captura estado del frame para el front
+    string constEval(Exp* e);                                    // eval simbolica simple para valores en stack
 };
 
 #endif // VISITOR_H
-
-
-
-
-
 
 
 

@@ -30,7 +30,7 @@ Token* Scanner::nextToken() {
         int tokenLine = line;
         int tokenCol  = col;
 
-        // Saltar espacios en blanco
+        // saltar espacios en blanco
         if (isspace(static_cast<unsigned char>(c))) {
             advanceChar();
             continue;
@@ -38,11 +38,11 @@ Token* Scanner::nextToken() {
 
         first = current;
 
-        // Comentarios // y /* */
+        // comentarios // y /* */
         if (c == '/' && current + 1 < static_cast<int>(input.size())) {
             char next = input[current + 1];
             if (next == '/') {
-                // comentario de línea
+                // comentario de linea
                 while (current < static_cast<int>(input.size()) && input[current] != '\n') {
                     advanceChar();
                 }
@@ -63,7 +63,7 @@ Token* Scanner::nextToken() {
             }
         }
 
-        // Línea de preprocesador: #include, #define, etc. -> ignorar
+        // linea de preprocesador: #include, #define, etc -> ignorar
         if (c == '#') {
             advanceChar();
             while (current < static_cast<int>(input.size()) &&
@@ -77,7 +77,7 @@ Token* Scanner::nextToken() {
             continue;
         }
 
-        // Literales de cadena "..."
+        // literales de cadena "..."
         if (c == '"') {
             advanceChar(); // saltar comilla de apertura
             while (current < static_cast<int>(input.size()) &&
@@ -92,7 +92,7 @@ Token* Scanner::nextToken() {
             return new Token(Token::STRING, input, first, current, tokenLine, tokenCol);
         }
 
-        // Números (solo enteros por ahora)
+        // numeros (solo enteros por ahora)
         if (isdigit(static_cast<unsigned char>(c))) {
             advanceChar();
             while (current < static_cast<int>(input.size()) &&
@@ -118,7 +118,7 @@ Token* Scanner::nextToken() {
             return new Token(Token::NUM, input, first, current, tokenLine, tokenCol);
         }
 
-        // Identificadores y palabras clave
+        // identificadores y palabras clave
         if (isalpha(static_cast<unsigned char>(c)) || c == '_') {
             advanceChar();
             while (current < static_cast<int>(input.size()) &&
@@ -149,7 +149,7 @@ Token* Scanner::nextToken() {
             return t;
         }
 
-        // Operadores y signos de puntuación
+        // operadores y signos de puntuacion
         advanceChar();
         switch (c) {
             case '+': return new Token(Token::PLUS, c, tokenLine, tokenCol);

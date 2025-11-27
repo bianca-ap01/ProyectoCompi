@@ -1,7 +1,6 @@
 export interface CompilationResponse {
   success: boolean
   output: string
-  image_b64?: string
   logs: string
   stack?: StackFrame[]
   asm?: string
@@ -21,6 +20,7 @@ export type StackFrame = {
   sp?: number
   line?: number
   idx?: number
+  func?: string
 }
 
 const API_URL = process.env.NEXT_PUBLIC_COMPILER_API_URL || "http://localhost:8000"

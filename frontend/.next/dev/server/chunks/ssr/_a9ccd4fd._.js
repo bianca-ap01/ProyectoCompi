@@ -107,6 +107,17 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
         stack
     ]);
     const snaps = stack ?? [];
+    const indexedSnaps = snaps.map((s, idx)=>({
+            snap: s,
+            idx
+        }));
+    const isProlog = (s)=>{
+        const func = (s.func || "").toLowerCase();
+        const lineVal = s.line ?? -1;
+        return func !== "main" || lineVal <= 0;
+    };
+    const prologSnaps = indexedSnaps.filter(({ snap })=>isProlog(snap) && !((snap.label || "").toLowerCase() === "prolog" && (snap.vars?.length ?? 0) === 0 && (snap.func || "").toLowerCase() === "main"));
+    const mainSnaps = indexedSnaps.filter(({ snap })=>!isProlog(snap));
     const diffForIndex = (idx)=>{
         const snap = snaps[idx];
         const prevSnap = idx > 0 ? snaps[idx - 1] : undefined;
@@ -133,8 +144,9 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
             updated
         };
     };
-    const current = snaps[activeIndex] ?? snaps[0];
-    const prev = activeIndex > 0 ? snaps[activeIndex - 1] : undefined;
+    const effectiveIdx = activeIndex < snaps.length && snaps[activeIndex] ? activeIndex : mainSnaps[0]?.idx ?? activeIndex;
+    const current = snaps[effectiveIdx] ?? snaps[0];
+    const prev = effectiveIdx > 0 ? snaps[effectiveIdx - 1] : undefined;
     const activeSnapRef = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRef"])(null);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         if (activeIndex >= snaps.length) setActiveIndex(0);
@@ -192,12 +204,12 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                         size: 20
                     }, void 0, false, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 71,
+                        lineNumber: 91,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 70,
+                    lineNumber: 90,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -205,13 +217,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                     children: "La visualización de memoria aparecerá aquí..."
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 73,
+                    lineNumber: 93,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/memory-visualizer.tsx",
-            lineNumber: 69,
+            lineNumber: 89,
             columnNumber: 7
         }, this);
     }
@@ -230,7 +242,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                     children: "Código / Snapshots"
                                 }, void 0, false, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 84,
+                                    lineNumber: 103,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -240,98 +252,136 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 85,
+                                    lineNumber: 104,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/components/memory-visualizer.tsx",
-                            lineNumber: 83,
+                            lineNumber: 102,
                             columnNumber: 11
                         }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                            className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-auto scrollbar-transparent",
-                            children: snaps.map((s, idx)=>{
-                                const diff = diffForIndex(idx);
-                                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
-                                    ref: activeIndex === idx ? activeSnapRef : undefined,
-                                    onClick: ()=>setActiveIndex(idx),
-                                    className: `text-left rounded-xl border border-white/10 px-3 py-2 transition-colors ${activeIndex === idx ? "bg-sky-500/80 text-slate-900 shadow-sm shadow-sky-500/40" : "bg-white/10 text-slate-100 hover:bg-white/20"}`,
-                                    children: [
-                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                            className: "flex items-center justify-between text-[11px] font-semibold font-mono uppercase tracking-wide",
-                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                className: "truncate",
-                                                children: s.line && s.line > 0 ? `L${s.line} · ${s.label}` : s.label
-                                            }, void 0, false, {
+                        [
+                            {
+                                title: "Prolog",
+                                list: prologSnaps
+                            },
+                            {
+                                title: "Código",
+                                list: mainSnaps
+                            }
+                        ].map((section)=>section.list.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                className: "space-y-2",
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        className: "text-[11px] uppercase tracking-[0.18em] text-slate-400",
+                                        children: section.title
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/memory-visualizer.tsx",
+                                        lineNumber: 110,
+                                        columnNumber: 19
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                        className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-52 overflow-auto scrollbar-transparent",
+                                        children: section.list.map(({ snap: s, idx })=>{
+                                            const diff = diffForIndex(idx);
+                                            const label = s.line && s.line > 0 ? `L${s.line} · ${s.label}` : s.label;
+                                            const funcTag = s.func && s.func.toLowerCase() !== "main" ? s.func : "";
+                                            return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
+                                                ref: activeIndex === idx ? activeSnapRef : undefined,
+                                                onClick: ()=>setActiveIndex(idx),
+                                                className: `text-left rounded-xl border border-white/10 px-3 py-2 transition-colors ${activeIndex === idx ? "bg-sky-500/80 text-slate-900 shadow-sm shadow-sky-500/40" : "bg-white/10 text-slate-100 hover:bg-white/20"}`,
+                                                children: [
+                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                        className: "flex items-center justify-between text-[11px] font-semibold font-mono uppercase tracking-wide",
+                                                        children: [
+                                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                className: "truncate",
+                                                                children: label
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/components/memory-visualizer.tsx",
+                                                                lineNumber: 128,
+                                                                columnNumber: 29
+                                                            }, this),
+                                                            funcTag && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                className: "text-[10px] text-sky-200",
+                                                                children: funcTag
+                                                            }, void 0, false, {
+                                                                fileName: "[project]/components/memory-visualizer.tsx",
+                                                                lineNumber: 129,
+                                                                columnNumber: 41
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/components/memory-visualizer.tsx",
+                                                        lineNumber: 127,
+                                                        columnNumber: 27
+                                                    }, this),
+                                                    (diff.added.length > 0 || diff.updated.size > 0) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                        className: "text-[10px] text-slate-200 mt-1 space-y-1",
+                                                        children: [
+                                                            diff.added.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                children: [
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                        className: "text-emerald-300 font-semibold",
+                                                                        children: "+ "
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/components/memory-visualizer.tsx",
+                                                                        lineNumber: 135,
+                                                                        columnNumber: 35
+                                                                    }, this),
+                                                                    diff.added.join(", ")
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "[project]/components/memory-visualizer.tsx",
+                                                                lineNumber: 134,
+                                                                columnNumber: 33
+                                                            }, this),
+                                                            diff.updated.size > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                                children: [
+                                                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
+                                                                        className: "text-amber-300 font-semibold",
+                                                                        children: "↻ "
+                                                                    }, void 0, false, {
+                                                                        fileName: "[project]/components/memory-visualizer.tsx",
+                                                                        lineNumber: 141,
+                                                                        columnNumber: 35
+                                                                    }, this),
+                                                                    Array.from(diff.updated).join(", ")
+                                                                ]
+                                                            }, void 0, true, {
+                                                                fileName: "[project]/components/memory-visualizer.tsx",
+                                                                lineNumber: 140,
+                                                                columnNumber: 33
+                                                            }, this)
+                                                        ]
+                                                    }, void 0, true, {
+                                                        fileName: "[project]/components/memory-visualizer.tsx",
+                                                        lineNumber: 132,
+                                                        columnNumber: 29
+                                                    }, this)
+                                                ]
+                                            }, `${label}-${idx}`, true, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 102,
-                                                columnNumber: 21
-                                            }, this)
-                                        }, void 0, false, {
-                                            fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 101,
-                                            columnNumber: 19
-                                        }, this),
-                                        (diff.added.length > 0 || diff.updated.size > 0) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                            className: "text-[10px] text-slate-200 mt-1 space-y-1",
-                                            children: [
-                                                diff.added.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "text-emerald-300 font-semibold",
-                                                            children: "+ "
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/memory-visualizer.tsx",
-                                                            lineNumber: 110,
-                                                            columnNumber: 27
-                                                        }, this),
-                                                        diff.added.join(", ")
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/components/memory-visualizer.tsx",
-                                                    lineNumber: 109,
-                                                    columnNumber: 25
-                                                }, this),
-                                                diff.updated.size > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
-                                                    children: [
-                                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                            className: "text-amber-300 font-semibold",
-                                                            children: "↻ "
-                                                        }, void 0, false, {
-                                                            fileName: "[project]/components/memory-visualizer.tsx",
-                                                            lineNumber: 116,
-                                                            columnNumber: 27
-                                                        }, this),
-                                                        Array.from(diff.updated).join(", ")
-                                                    ]
-                                                }, void 0, true, {
-                                                    fileName: "[project]/components/memory-visualizer.tsx",
-                                                    lineNumber: 115,
-                                                    columnNumber: 25
-                                                }, this)
-                                            ]
-                                        }, void 0, true, {
-                                            fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 107,
-                                            columnNumber: 21
-                                        }, this)
-                                    ]
-                                }, `${s.label}-${idx}`, true, {
-                                    fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 91,
-                                    columnNumber: 17
-                                }, this);
-                            })
-                        }, void 0, false, {
-                            fileName: "[project]/components/memory-visualizer.tsx",
-                            lineNumber: 87,
-                            columnNumber: 11
-                        }, this)
+                                                lineNumber: 117,
+                                                columnNumber: 25
+                                            }, this);
+                                        })
+                                    }, void 0, false, {
+                                        fileName: "[project]/components/memory-visualizer.tsx",
+                                        lineNumber: 111,
+                                        columnNumber: 19
+                                    }, this)
+                                ]
+                            }, section.title, true, {
+                                fileName: "[project]/components/memory-visualizer.tsx",
+                                lineNumber: 109,
+                                columnNumber: 17
+                            }, this))
                     ]
                 }, void 0, true, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 82,
+                    lineNumber: 101,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -353,18 +403,18 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 136,
+                                            lineNumber: 163,
                                             columnNumber: 21
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 133,
+                                    lineNumber: 160,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                lineNumber: 132,
+                                lineNumber: 159,
                                 columnNumber: 15
                             }, this),
                             (changes.added.length > 0 || changes.updated.size > 0) && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -378,7 +428,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                 children: "Nuevas:"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 146,
+                                                lineNumber: 173,
                                                 columnNumber: 23
                                             }, this),
                                             " ",
@@ -386,7 +436,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                        lineNumber: 145,
+                                        lineNumber: 172,
                                         columnNumber: 21
                                     }, this),
                                     changes.updated.size > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -396,7 +446,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                 children: "Actualizadas:"
                                             }, void 0, false, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 152,
+                                                lineNumber: 179,
                                                 columnNumber: 23
                                             }, this),
                                             " ",
@@ -404,13 +454,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                        lineNumber: 151,
+                                        lineNumber: 178,
                                         columnNumber: 21
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                lineNumber: 143,
+                                lineNumber: 170,
                                 columnNumber: 17
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -427,7 +477,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Var"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 162,
+                                                        lineNumber: 189,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -435,7 +485,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Addr"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 163,
+                                                        lineNumber: 190,
                                                         columnNumber: 23
                                                     }, this),
                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("th", {
@@ -443,18 +493,18 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Val"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 164,
+                                                        lineNumber: 191,
                                                         columnNumber: 23
                                                     }, this)
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                lineNumber: 161,
+                                                lineNumber: 188,
                                                 columnNumber: 21
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 160,
+                                            lineNumber: 187,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("tbody", {
@@ -470,7 +520,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                         children: v.name
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                                        lineNumber: 178,
+                                                                        lineNumber: 205,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -478,13 +528,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                         children: v.type || ""
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                                        lineNumber: 179,
+                                                                        lineNumber: 206,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 177,
+                                                                lineNumber: 204,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -492,7 +542,7 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                 children: v.offset !== undefined ? `${v.offset}(%rbp)` : ""
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 181,
+                                                                lineNumber: 208,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("td", {
@@ -500,13 +550,13 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                                 children: v.value || "?"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                                                lineNumber: 184,
+                                                                lineNumber: 211,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, `${v.name}-${i}`, true, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 169,
+                                                        lineNumber: 196,
                                                         columnNumber: 23
                                                     }, this)),
                                                 current.vars.length === 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("tr", {
@@ -516,53 +566,53 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                                                         children: "Sin variables en este frame"
                                                     }, void 0, false, {
                                                         fileName: "[project]/components/memory-visualizer.tsx",
-                                                        lineNumber: 189,
+                                                        lineNumber: 216,
                                                         columnNumber: 25
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                                    lineNumber: 188,
+                                                    lineNumber: 215,
                                                     columnNumber: 23
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/components/memory-visualizer.tsx",
-                                            lineNumber: 167,
+                                            lineNumber: 194,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/components/memory-visualizer.tsx",
-                                    lineNumber: 159,
+                                    lineNumber: 186,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/components/memory-visualizer.tsx",
-                                lineNumber: 158,
+                                lineNumber: 185,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 131,
+                        lineNumber: 158,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "text-sm text-slate-400",
                         children: "Sin snapshot seleccionado."
                     }, void 0, false, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 199,
+                        lineNumber: 226,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 129,
+                    lineNumber: 156,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/components/memory-visualizer.tsx",
-            lineNumber: 80,
+            lineNumber: 100,
             columnNumber: 7
         }, this);
     }
@@ -577,12 +627,12 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                     children: "Memoria / Stack (imagen)"
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 210,
+                    lineNumber: 237,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/memory-visualizer.tsx",
-                lineNumber: 209,
+                lineNumber: 236,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -595,23 +645,23 @@ function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIn
                         className: "shadow-2xl shadow-black/40 border border-white/10 rounded-2xl max-w-full h-auto"
                     }, void 0, false, {
                         fileName: "[project]/components/memory-visualizer.tsx",
-                        lineNumber: 215,
+                        lineNumber: 242,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/components/memory-visualizer.tsx",
-                    lineNumber: 214,
+                    lineNumber: 241,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/components/memory-visualizer.tsx",
-                lineNumber: 213,
+                lineNumber: 240,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/components/memory-visualizer.tsx",
-        lineNumber: 208,
+        lineNumber: 235,
         columnNumber: 5
     }, this);
 }
@@ -703,6 +753,18 @@ int main() {
     const [activeSnap, setActiveSnap] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(0);
     const activeSnapshot = stack[activeSnap];
     const totalSnapshots = stack.length;
+    const CODE_KEY = "orbit-code";
+    (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
+        if ("TURBOPACK compile-time truthy", 1) return;
+        //TURBOPACK unreachable
+        ;
+        const saved = undefined;
+    }, []);
+    const handleCodeChange = (value)=>{
+        setCode(value);
+        if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+        ;
+    };
     const goPrev = ()=>setActiveSnap((idx)=>idx > 0 ? idx - 1 : idx);
     const goNext = ()=>setActiveSnap((idx)=>idx + 1 < totalSnapshots ? idx + 1 : idx);
     const handleRun = async ()=>{
@@ -742,12 +804,13 @@ int main() {
         showFullAsm,
         asmByLine
     ]);
+    const rawLine = stack[activeSnap]?.line ?? -1;
+    const editorLine = rawLine > 0 ? rawLine : undefined;
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
         const editorPane = document.getElementById("code-editor-pane");
-        if (editorPane && stack[activeSnap]?.line) {
-            const line = stack[activeSnap].line;
+        if (editorPane && editorLine) {
             const lines = editorPane.querySelectorAll(".cm-line");
-            const target = lines[line - 1];
+            const target = lines[editorLine - 1];
             if (target) {
                 target.scrollIntoView({
                     behavior: "smooth",
@@ -757,7 +820,8 @@ int main() {
         }
     }, [
         activeSnap,
-        stack
+        stack,
+        editorLine
     ]);
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "min-h-screen bg-background text-foreground text-sm",
@@ -777,12 +841,12 @@ int main() {
                                         className: "text-accent"
                                     }, void 0, false, {
                                         fileName: "[project]/app/page.tsx",
-                                        lineNumber: 100,
+                                        lineNumber: 118,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 99,
+                                    lineNumber: 117,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -793,7 +857,7 @@ int main() {
                                             children: "Orbit"
                                         }, void 0, false, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 103,
+                                            lineNumber: 121,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -801,19 +865,19 @@ int main() {
                                             children: "/ Compiler"
                                         }, void 0, false, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 104,
+                                            lineNumber: 122,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 102,
+                                    lineNumber: 120,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 98,
+                            lineNumber: 116,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -826,7 +890,7 @@ int main() {
                                             className: `w-1.5 h-1.5 rounded-full ${loading ? "bg-warning animate-pulse" : "bg-success"}`
                                         }, void 0, false, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 110,
+                                            lineNumber: 128,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -834,13 +898,13 @@ int main() {
                                             children: loading ? "Compilando..." : "Listo"
                                         }, void 0, false, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 111,
+                                            lineNumber: 129,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 109,
+                                    lineNumber: 127,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -853,7 +917,7 @@ int main() {
                                                 className: "w-3.5 h-3.5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 125,
+                                                lineNumber: 143,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -861,7 +925,7 @@ int main() {
                                                 children: "Compilando"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 126,
+                                                lineNumber: 144,
                                                 columnNumber: 19
                                             }, this)
                                         ]
@@ -872,38 +936,38 @@ int main() {
                                                 fill: "currentColor"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 130,
+                                                lineNumber: 148,
                                                 columnNumber: 19
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                 children: "Ejecutar"
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 131,
+                                                lineNumber: 149,
                                                 columnNumber: 19
                                             }, this)
                                         ]
                                     }, void 0, true)
                                 }, void 0, false, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 114,
+                                    lineNumber: 132,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 108,
+                            lineNumber: 126,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 97,
+                    lineNumber: 115,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 96,
+                lineNumber: 114,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("main", {
@@ -927,27 +991,27 @@ int main() {
                                                             className: "w-3 h-3 rounded-full bg-destructive/80"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/page.tsx",
-                                                            lineNumber: 147,
+                                                            lineNumber: 165,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                             className: "w-3 h-3 rounded-full bg-warning/80"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/page.tsx",
-                                                            lineNumber: 148,
+                                                            lineNumber: 166,
                                                             columnNumber: 19
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                             className: "w-3 h-3 rounded-full bg-success/80"
                                                         }, void 0, false, {
                                                             fileName: "[project]/app/page.tsx",
-                                                            lineNumber: 149,
+                                                            lineNumber: 167,
                                                             columnNumber: 19
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 146,
+                                                    lineNumber: 164,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -957,18 +1021,18 @@ int main() {
                                                         children: "main.c"
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 152,
+                                                        lineNumber: 170,
                                                         columnNumber: 19
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 151,
+                                                    lineNumber: 169,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 145,
+                                            lineNumber: 163,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -978,26 +1042,26 @@ int main() {
                                                     size: 12
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 156,
+                                                    lineNumber: 174,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                     children: "x86-64"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 157,
+                                                    lineNumber: 175,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 155,
+                                            lineNumber: 173,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 144,
+                                    lineNumber: 162,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1007,16 +1071,16 @@ int main() {
                                             className: "flex-1 min-h-0",
                                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$components$2f$grammar$2d$panel$2e$tsx__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["GrammarPanel"], {
                                                 code: code,
-                                                setCode: setCode,
-                                                activeLine: activeSnapshot?.line
+                                                setCode: handleCodeChange,
+                                                activeLine: editorLine
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 162,
+                                                lineNumber: 180,
                                                 columnNumber: 17
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 161,
+                                            lineNumber: 179,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1027,7 +1091,7 @@ int main() {
                                                     children: "Salida"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 165,
+                                                    lineNumber: 183,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
@@ -1037,30 +1101,30 @@ int main() {
                                                         children: "Sin salida."
                                                     }, void 0, false, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 167,
+                                                        lineNumber: 185,
                                                         columnNumber: 30
                                                     }, this)
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 166,
+                                                    lineNumber: 184,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 164,
+                                            lineNumber: 182,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 160,
+                                    lineNumber: 178,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 143,
+                            lineNumber: 161,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1076,7 +1140,7 @@ int main() {
                                                     size: 12
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 177,
+                                                    lineNumber: 195,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1084,13 +1148,13 @@ int main() {
                                                     children: "ASM"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 178,
+                                                    lineNumber: 196,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 176,
+                                            lineNumber: 194,
                                             columnNumber: 15
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1103,7 +1167,7 @@ int main() {
                                                     children: "←"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 181,
+                                                    lineNumber: 199,
                                                     columnNumber: 17
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1113,7 +1177,7 @@ int main() {
                                                     children: "→"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 188,
+                                                    lineNumber: 206,
                                                     columnNumber: 17
                                                 }, this),
                                                 activeSnapshot?.line ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1124,7 +1188,7 @@ int main() {
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 196,
+                                                    lineNumber: 214,
                                                     columnNumber: 19
                                                 }, this) : null,
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("button", {
@@ -1144,19 +1208,19 @@ int main() {
                                                     children: showFullAsm ? "Ver por línea" : "Ver código completo"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 200,
+                                                    lineNumber: 218,
                                                     columnNumber: 17
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 180,
+                                            lineNumber: 198,
                                             columnNumber: 15
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 175,
+                                    lineNumber: 193,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1168,6 +1232,7 @@ int main() {
                                             if (asmByLine && !showFullAsm) {
                                                 const targetLine = stack[activeSnap]?.line;
                                                 const prolog = [];
+                                                const mainStartLine = stack.filter((s)=>(s.func || "").toLowerCase() === "main" && (s.line ?? 0) > 0).map((s)=>s.line ?? Number.MAX_SAFE_INTEGER).reduce((a, b)=>Math.min(a, b), Number.MAX_SAFE_INTEGER);
                                                 if (asm) {
                                                     const linesAll = (asm || "").split("\n");
                                                     for (const l of linesAll){
@@ -1177,7 +1242,11 @@ int main() {
                                                 }
                                                 const labelByLine = (line, instrs)=>{
                                                     const snap = stack.find((s)=>s.line === line);
-                                                    if (snap?.label) return snap.label;
+                                                    if (snap?.label) {
+                                                        const lbl = snap.label.toLowerCase();
+                                                        if (lbl.includes("start")) return "";
+                                                        return snap.label;
+                                                    }
                                                     const joined = instrs.join(" ");
                                                     if (joined.includes("printf@PLT")) return "print";
                                                     if (joined.includes("call ")) return "call";
@@ -1189,23 +1258,32 @@ int main() {
                                                         line: parseInt(lineStr, 10),
                                                         instrs,
                                                         label: labelByLine(parseInt(lineStr, 10), instrs)
-                                                    })).filter((b)=>b.line >= 1) // omitimos línea -1 (prolog ya se muestra aparte)
-                                                ;
+                                                    })).filter((b)=>!Number.isNaN(b.line) && b.line >= -1);
                                                 if (prolog.length > 0) {
                                                     blocks.unshift({
                                                         line: -1,
-                                                        instrs: prolog
+                                                        instrs: prolog,
+                                                        label: "prolog"
                                                     });
                                                 }
                                                 blocks.sort((a, b)=>a.line - b.line);
-                                                if (targetLine !== undefined) {
-                                                    blocks = blocks.filter((b)=>b.line <= targetLine);
-                                                }
+                                                const firstPosLine = blocks.find((b)=>b.line >= 1)?.line ?? Number.MAX_SAFE_INTEGER;
+                                                const mainStart = mainStartLine === Number.MAX_SAFE_INTEGER ? firstPosLine : mainStartLine;
+                                                const prologBlocksRaw = blocks.filter((b)=>b.line < mainStart);
+                                                const prologBlocks = prologBlocksRaw.length > 1 ? prologBlocksRaw.slice(1) : prologBlocksRaw // quitar el primer prolog, dejar el resto
+                                                ;
+                                                const mainBlocks = blocks.filter((b)=>b.line >= mainStart);
+                                                const mergedBlocks = [
+                                                    ...prologBlocks,
+                                                    ...mainBlocks
+                                                ];
                                                 let activeLine = targetLine;
-                                                if (activeLine === undefined && blocks.length > 0) {
-                                                    activeLine = blocks[blocks.length - 1].line;
+                                                if (activeLine !== undefined && activeLine <= 0) {
+                                                    activeLine = prologBlocks[0]?.line ?? -1;
+                                                } else if (activeLine === undefined && mergedBlocks.length > 0) {
+                                                    activeLine = mergedBlocks[mergedBlocks.length - 1].line;
                                                 }
-                                                return blocks.map((blk, idx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                const renderBlock = (blk, idx)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                         className: `rounded-lg border border-border bg-muted/30 p-3 ${activeLine === blk.line ? "ring-2 ring-accent/60" : ""}`,
                                                         ref: activeLine === blk.line ? (el)=>asmActiveRef.current = el : undefined,
                                                         children: [
@@ -1213,13 +1291,10 @@ int main() {
                                                                 className: "flex items-center justify-between text-[11px] font-mono uppercase text-muted-foreground mb-2",
                                                                 children: [
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
-                                                                        children: [
-                                                                            "Línea ",
-                                                                            blk.line
-                                                                        ]
-                                                                    }, void 0, true, {
+                                                                        children: blk.line < 1 ? "Prolog" : `Línea ${blk.line}`
+                                                                    }, void 0, false, {
                                                                         fileName: "[project]/app/page.tsx",
-                                                                        lineNumber: 274,
+                                                                        lineNumber: 309,
                                                                         columnNumber: 27
                                                                     }, this),
                                                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1227,13 +1302,13 @@ int main() {
                                                                         children: blk.label || ""
                                                                     }, void 0, false, {
                                                                         fileName: "[project]/app/page.tsx",
-                                                                        lineNumber: 275,
+                                                                        lineNumber: 310,
                                                                         columnNumber: 27
                                                                     }, this)
                                                                 ]
                                                             }, void 0, true, {
                                                                 fileName: "[project]/app/page.tsx",
-                                                                lineNumber: 273,
+                                                                lineNumber: 308,
                                                                 columnNumber: 25
                                                             }, this),
                                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("pre", {
@@ -1241,15 +1316,23 @@ int main() {
                                                                 children: blk.instrs.length ? blk.instrs.join("\n") : "// sin instrucciones"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/app/page.tsx",
-                                                                lineNumber: 277,
+                                                                lineNumber: 312,
                                                                 columnNumber: 25
                                                             }, this)
                                                         ]
                                                     }, `${blk.line}-${idx}`, true, {
                                                         fileName: "[project]/app/page.tsx",
-                                                        lineNumber: 266,
+                                                        lineNumber: 301,
                                                         columnNumber: 23
-                                                    }, this));
+                                                    }, this);
+                                                return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
+                                                    className: "space-y-2",
+                                                    children: mergedBlocks.map((blk, idx)=>renderBlock(blk, idx))
+                                                }, void 0, false, {
+                                                    fileName: "[project]/app/page.tsx",
+                                                    lineNumber: 318,
+                                                    columnNumber: 28
+                                                }, this);
                                             }
                                             // Si no hay asm_by_line, mostrar ASM completo
                                             return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1259,29 +1342,29 @@ int main() {
                                                     children: (asm || "").split("\n").filter((l)=>!l.trim().startsWith("# SNAPIDX")).join("\n") || "// sin instrucciones"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 287,
+                                                    lineNumber: 324,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 286,
+                                                lineNumber: 323,
                                                 columnNumber: 21
                                             }, this);
                                         })()
                                     }, void 0, false, {
                                         fileName: "[project]/app/page.tsx",
-                                        lineNumber: 223,
+                                        lineNumber: 241,
                                         columnNumber: 15
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 219,
+                                    lineNumber: 237,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 174,
+                            lineNumber: 192,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1300,14 +1383,14 @@ int main() {
                                                     size: 12
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 313,
+                                                    lineNumber: 350,
                                                     columnNumber: 40
                                                 }, this),
                                                 tab === "logs" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$lucide$2d$react$2f$dist$2f$esm$2f$icons$2f$circle$2d$alert$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__AlertCircle$3e$__["AlertCircle"], {
                                                     size: 12
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 314,
+                                                    lineNumber: 351,
                                                     columnNumber: 38
                                                 }, this),
                                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
@@ -1315,18 +1398,18 @@ int main() {
                                                     children: tab === "memory" ? "Memoria" : "Logs"
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 315,
+                                                    lineNumber: 352,
                                                     columnNumber: 19
                                                 }, this)
                                             ]
                                         }, tab, true, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 304,
+                                            lineNumber: 341,
                                             columnNumber: 17
                                         }, this))
                                 }, void 0, false, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 302,
+                                    lineNumber: 339,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1342,12 +1425,12 @@ int main() {
                                                 setActiveIndex: setActiveSnap
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 322,
+                                                lineNumber: 359,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 321,
+                                            lineNumber: 358,
                                             columnNumber: 17
                                         }, this),
                                         activeTab === "logs" && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -1359,46 +1442,46 @@ int main() {
                                                     children: "No hay logs disponibles."
                                                 }, void 0, false, {
                                                     fileName: "[project]/app/page.tsx",
-                                                    lineNumber: 334,
+                                                    lineNumber: 371,
                                                     columnNumber: 30
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/app/page.tsx",
-                                                lineNumber: 333,
+                                                lineNumber: 370,
                                                 columnNumber: 19
                                             }, this)
                                         }, void 0, false, {
                                             fileName: "[project]/app/page.tsx",
-                                            lineNumber: 332,
+                                            lineNumber: 369,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/page.tsx",
-                                    lineNumber: 319,
+                                    lineNumber: 356,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/page.tsx",
-                            lineNumber: 301,
+                            lineNumber: 338,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/page.tsx",
-                    lineNumber: 141,
+                    lineNumber: 159,
                     columnNumber: 9
                 }, this)
             }, void 0, false, {
                 fileName: "[project]/app/page.tsx",
-                lineNumber: 140,
+                lineNumber: 158,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/app/page.tsx",
-        lineNumber: 94,
+        lineNumber: 112,
         columnNumber: 5
     }, this);
 }

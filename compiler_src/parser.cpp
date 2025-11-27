@@ -98,7 +98,7 @@ Program* Parser::parseProgram() {
         parseTopLevelDeclaration(prog);
     }
 
-    cout << "Parser exitoso" << endl;
+    // parser exitoso si llega aqui
     return prog;
 }
 

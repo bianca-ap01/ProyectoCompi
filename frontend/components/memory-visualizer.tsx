@@ -15,6 +15,24 @@ interface MemoryVisualizerProps {
 export function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setActiveIndex }: MemoryVisualizerProps) {
   const hasStack = useMemo(() => !!stack && stack.length > 0, [stack])
   const snaps = stack ?? []
+  const indexedSnaps = snaps.map((s, idx) => ({ snap: s, idx }))
+
+  const isProlog = (s: StackFrame) => {
+    const func = (s.func || "").toLowerCase()
+    const lineVal = s.line ?? -1
+    return func !== "main" || lineVal <= 0
+  }
+
+  const prologSnaps = indexedSnaps.filter(
+    ({ snap }) =>
+      isProlog(snap) &&
+      !(
+        (snap.label || "").toLowerCase() === "prolog" &&
+        (snap.vars?.length ?? 0) === 0 &&
+        (snap.func || "").toLowerCase() === "main"
+      ),
+  )
+  const mainSnaps = indexedSnaps.filter(({ snap }) => !isProlog(snap))
 
   const diffForIndex = (idx: number) => {
     const snap = snaps[idx]
@@ -34,8 +52,10 @@ export function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setA
     return { added, updated }
   }
 
-  const current = snaps[activeIndex] ?? snaps[0]
-  const prev = activeIndex > 0 ? snaps[activeIndex - 1] : undefined
+  const effectiveIdx =
+    activeIndex < snaps.length && snaps[activeIndex] ? activeIndex : mainSnaps[0]?.idx ?? activeIndex
+  const current = snaps[effectiveIdx] ?? snaps[0]
+  const prev = effectiveIdx > 0 ? snaps[effectiveIdx - 1] : undefined
   const activeSnapRef = useRef<HTMLButtonElement | null>(null)
 
   useEffect(() => {
@@ -78,54 +98,61 @@ export function MemoryVisualizer({ imageBase64, stack, output, activeIndex, setA
   if (hasStack) {
     return (
       <div className="h-full w-full flex flex-col bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 border border-white/10">
-        {/* Fila 1: Snapshots */}
         <div className="border-b border-white/10 bg-white/5 px-3 py-2 space-y-2">
           <div className="flex items-center justify-between text-xs text-slate-300">
             <span className="uppercase tracking-[0.15em]">Código / Snapshots</span>
             <span>{snaps.length} paso(s)</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-40 overflow-auto scrollbar-transparent">
-            {snaps.map((s, idx) => {
-              const diff = diffForIndex(idx)
-              return (
-                <button
-                  key={`${s.label}-${idx}`}
-                  ref={activeIndex === idx ? activeSnapRef : undefined}
-                  onClick={() => setActiveIndex(idx)}
-                  className={`text-left rounded-xl border border-white/10 px-3 py-2 transition-colors ${
-                    activeIndex === idx
-                      ? "bg-sky-500/80 text-slate-900 shadow-sm shadow-sky-500/40"
-                      : "bg-white/10 text-slate-100 hover:bg-white/20"
-                  }`}
-                >
-                  <div className="flex items-center justify-between text-[11px] font-semibold font-mono uppercase tracking-wide">
-                    <span className="truncate">
-                      {s.line && s.line > 0 ? `L${s.line} · ${s.label}` : s.label}
-                    </span>
+          {[{ title: "Prolog", list: prologSnaps }, { title: "Código", list: mainSnaps }].map(
+            (section) =>
+              section.list.length > 0 && (
+                <div key={section.title} className="space-y-2">
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-slate-400">{section.title}</div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 max-h-52 overflow-auto scrollbar-transparent">
+                    {section.list.map(({ snap: s, idx }) => {
+                      const diff = diffForIndex(idx)
+                      const label = s.line && s.line > 0 ? `L${s.line} · ${s.label}` : s.label
+                      const funcTag = s.func && s.func.toLowerCase() !== "main" ? s.func : ""
+                      return (
+                        <button
+                          key={`${label}-${idx}`}
+                          ref={activeIndex === idx ? activeSnapRef : undefined}
+                          onClick={() => setActiveIndex(idx)}
+                          className={`text-left rounded-xl border border-white/10 px-3 py-2 transition-colors ${
+                            activeIndex === idx
+                              ? "bg-sky-500/80 text-slate-900 shadow-sm shadow-sky-500/40"
+                              : "bg-white/10 text-slate-100 hover:bg-white/20"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-[11px] font-semibold font-mono uppercase tracking-wide">
+                            <span className="truncate">{label}</span>
+                            {funcTag && <span className="text-[10px] text-sky-200">{funcTag}</span>}
+                          </div>
+                          {(diff.added.length > 0 || diff.updated.size > 0) && (
+                            <div className="text-[10px] text-slate-200 mt-1 space-y-1">
+                              {diff.added.length > 0 && (
+                                <div>
+                                  <span className="text-emerald-300 font-semibold">+ </span>
+                                  {diff.added.join(", ")}
+                                </div>
+                              )}
+                              {diff.updated.size > 0 && (
+                                <div>
+                                  <span className="text-amber-300 font-semibold">↻ </span>
+                                  {Array.from(diff.updated).join(", ")}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      )
+                    })}
                   </div>
-                  {(diff.added.length > 0 || diff.updated.size > 0) && (
-                    <div className="text-[10px] text-slate-200 mt-1 space-y-1">
-                      {diff.added.length > 0 && (
-                        <div>
-                          <span className="text-emerald-300 font-semibold">+ </span>
-                          {diff.added.join(", ")}
-                        </div>
-                      )}
-                      {diff.updated.size > 0 && (
-                        <div>
-                          <span className="text-amber-300 font-semibold">↻ </span>
-                          {Array.from(diff.updated).join(", ")}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+                </div>
+              ),
+          )}
         </div>
 
-        {/* Fila 2: stack del snapshot activo */}
         <div className="flex-1 overflow-auto p-4">
           {current ? (
             <div className="rounded-2xl border border-white/10 bg-[#0d152a]/80 backdrop-blur-xl p-3 shadow-lg shadow-black/30 space-y-2">

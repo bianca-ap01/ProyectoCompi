@@ -42,6 +42,22 @@ int main() {
   const [activeSnap, setActiveSnap] = useState(0)
   const activeSnapshot = stack[activeSnap]
   const totalSnapshots = stack.length
+  const CODE_KEY = "orbit-code"
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const saved = localStorage.getItem(CODE_KEY)
+    if (saved && saved.length > 0) {
+      setCode(saved)
+    }
+  }, [])
+
+  const handleCodeChange = (value: string) => {
+    setCode(value)
+    if (typeof window !== "undefined") {
+      localStorage.setItem(CODE_KEY, value)
+    }
+  }
 
   const goPrev = () => setActiveSnap((idx) => (idx > 0 ? idx - 1 : idx))
   const goNext = () => setActiveSnap((idx) => (idx + 1 < totalSnapshots ? idx + 1 : idx))
@@ -78,17 +94,19 @@ int main() {
     }
   }, [activeSnap, showFullAsm, asmByLine])
 
+  const rawLine = stack[activeSnap]?.line ?? -1
+  const editorLine = rawLine > 0 ? rawLine : undefined
+
   useEffect(() => {
     const editorPane = document.getElementById("code-editor-pane")
-    if (editorPane && stack[activeSnap]?.line) {
-      const line = stack[activeSnap].line!
+    if (editorPane && editorLine) {
       const lines = editorPane.querySelectorAll(".cm-line")
-      const target = lines[line - 1] as HTMLElement | undefined
+      const target = lines[editorLine - 1] as HTMLElement | undefined
       if (target) {
         target.scrollIntoView({ behavior: "smooth", block: "center" })
       }
     }
-  }, [activeSnap, stack])
+  }, [activeSnap, stack, editorLine])
 
   return (
     <div className="min-h-screen bg-background text-foreground text-sm">
@@ -159,7 +177,7 @@ int main() {
             </div>
             <div className="flex-1 min-h-0 flex flex-col">
               <div className="flex-1 min-h-0">
-                <GrammarPanel code={code} setCode={setCode} activeLine={activeSnapshot?.line} />
+                <GrammarPanel code={code} setCode={handleCodeChange} activeLine={editorLine} />
               </div>
               <div className="border-t border-border bg-muted/20 h-32 px-3 py-2 overflow-auto scrollbar-transparent">
                 <div className="text-xs uppercase tracking-[0.15em] text-muted-foreground mb-1">Salida</div>
@@ -225,6 +243,11 @@ int main() {
                   if (asmByLine && !showFullAsm) {
                     const targetLine = stack[activeSnap]?.line
                     const prolog: string[] = []
+                    const mainStartLine =
+                      stack
+                        .filter((s) => (s.func || "").toLowerCase() === "main" && (s.line ?? 0) > 0)
+                        .map((s) => s.line ?? Number.MAX_SAFE_INTEGER)
+                        .reduce((a, b) => Math.min(a, b), Number.MAX_SAFE_INTEGER)
                     if (asm) {
                       const linesAll = (asm || "").split("\n")
                       for (const l of linesAll) {
@@ -235,7 +258,11 @@ int main() {
 
                     const labelByLine = (line: number, instrs: string[]) => {
                       const snap = stack.find((s) => s.line === line)
-                      if (snap?.label) return snap.label
+                      if (snap?.label) {
+                        const lbl = snap.label.toLowerCase()
+                        if (lbl.includes("start")) return ""
+                        return snap.label
+                      }
                       const joined = instrs.join(" ")
                       if (joined.includes("printf@PLT")) return "print"
                       if (joined.includes("call ")) return "call"
@@ -250,19 +277,27 @@ int main() {
                         instrs,
                         label: labelByLine(parseInt(lineStr, 10), instrs),
                       }))
-                      .filter((b) => b.line >= 1) // omitimos línea -1 (prolog ya se muestra aparte)
+                      .filter((b) => !Number.isNaN(b.line) && b.line >= -1)
                     if (prolog.length > 0) {
-                      blocks.unshift({ line: -1, instrs: prolog })
+                      blocks.unshift({ line: -1, instrs: prolog, label: "prolog" })
                     }
                     blocks.sort((a, b) => a.line - b.line)
-                    if (targetLine !== undefined) {
-                      blocks = blocks.filter((b) => b.line <= targetLine)
-                    }
+                    const firstPosLine = blocks.find((b) => b.line >= 1)?.line ?? Number.MAX_SAFE_INTEGER
+                    const mainStart = mainStartLine === Number.MAX_SAFE_INTEGER ? firstPosLine : mainStartLine
+                    const prologBlocksRaw = blocks.filter((b) => b.line < mainStart)
+                    const prologBlocks =
+                      prologBlocksRaw.length > 1 ? prologBlocksRaw.slice(1) : prologBlocksRaw // quitar el primer prolog, dejar el resto
+                    const mainBlocks = blocks.filter((b) => b.line >= mainStart)
+
+                    const mergedBlocks = [...prologBlocks, ...mainBlocks]
                     let activeLine = targetLine
-                    if (activeLine === undefined && blocks.length > 0) {
-                      activeLine = blocks[blocks.length - 1].line
+                    if (activeLine !== undefined && activeLine <= 0) {
+                      activeLine = prologBlocks[0]?.line ?? -1
+                    } else if (activeLine === undefined && mergedBlocks.length > 0) {
+                      activeLine = mergedBlocks[mergedBlocks.length - 1].line
                     }
-                    return blocks.map((blk, idx) => (
+
+                    const renderBlock = (blk: typeof blocks[number], idx: number) => (
                       <div
                         key={`${blk.line}-${idx}`}
                         className={`rounded-lg border border-border bg-muted/30 p-3 ${
@@ -271,14 +306,16 @@ int main() {
                         ref={activeLine === blk.line ? (el) => (asmActiveRef.current = el) : undefined}
                       >
                         <div className="flex items-center justify-between text-[11px] font-mono uppercase text-muted-foreground mb-2">
-                          <span>Línea {blk.line}</span>
+                          <span>{blk.line < 1 ? "Prolog" : `Línea ${blk.line}`}</span>
                           <span className="text-foreground font-semibold">{blk.label || ""}</span>
                         </div>
                         <pre className="font-mono text-xs text-accent-foreground whitespace-pre-wrap leading-relaxed">
                           {blk.instrs.length ? blk.instrs.join("\n") : "// sin instrucciones"}
                         </pre>
                       </div>
-                    ))
+                    )
+
+                    return <div className="space-y-2">{mergedBlocks.map((blk, idx) => renderBlock(blk, idx))}</div>
                   }
 
                   // Si no hay asm_by_line, mostrar ASM completo

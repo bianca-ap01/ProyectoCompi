@@ -10,6 +10,8 @@ using namespace std;
 // ======================================================================
 //   Utilidades
 // ======================================================================
+// emit escribe asm y lo guarda por linea en asmByLine para la visualizacion
+// sizeOfType usa slots de 8 bytes para evitar solapamientos; is32Bit decide movq/movl
 
 static bool tryParseLong(const string& s, long long& out) {
     if (s.empty()) return false;
@@ -107,7 +109,8 @@ int GenCodeVisitor::generar(Program* program) {
 void GenCodeVisitor::emit(const string& instr, int lineOverride) {
     int line = (lineOverride >= 0) ? lineOverride : currentLine;
     out << instr << endl;
-    if (line >= 0) {
+    // guardamos tambien prologo (-1) para que aparezca en front
+    if (line >= -1) {
         asmByLine[line].push_back(instr);
     }
 }
@@ -115,8 +118,9 @@ void GenCodeVisitor::emit(const string& instr, int lineOverride) {
 void GenCodeVisitor::saveStack() {
     if (stackPath.empty()) return;
 
+    // si no hay snapshots, al menos guardar globals
     if (snapshots.empty() && !globalFrame.vars.empty()) {
-        snapshots.push_back(Snapshot{"globals", globalFrame.vars, 0, snapshotCounter++});
+        snapshots.push_back(Snapshot{"globals", globalFrame.vars, 0, snapshotCounter++, "global"});
     }
 
     ofstream json(stackPath, ios::trunc);
@@ -125,11 +129,12 @@ void GenCodeVisitor::saveStack() {
     json << "[";
     for (size_t i = 0; i < snapshots.size(); ++i) {
         const auto& fr = snapshots[i];
-        json << "{\"label\":\"" << fr.label << "\",\"line\":" << fr.line << ",\"idx\":" << fr.idx << ",\"vars\":[";
+        json << "{\"label\":\"" << jsonEscape(fr.label) << "\",\"line\":" << fr.line << ",\"idx\":" << fr.idx
+             << ",\"func\":\"" << jsonEscape(fr.func) << "\",\"vars\":[";
         for (size_t v = 0; v < fr.vars.size(); ++v) {
             const auto& var = fr.vars[v];
-            json << "{\"name\":\"" << var.name << "\",\"value\":\"" << var.value << "\","
-                << "\"offset\":" << var.offset << ",\"type\":\"" << var.type << "\"}";
+            json << "{\"name\":\"" << jsonEscape(var.name) << "\",\"value\":\"" << jsonEscape(var.value) << "\","
+                << "\"offset\":" << var.offset << ",\"type\":\"" << jsonEscape(var.type) << "\"}";
             if (v + 1 < fr.vars.size()) json << ",";
         }
         json << "]}";
@@ -140,6 +145,8 @@ void GenCodeVisitor::saveStack() {
 
 void GenCodeVisitor::saveAsmMap() {
     if (stackPath.empty()) return;
+    // asmByLine sale de emit: agrupa instrucciones por linea de codigo fuente
+    // se escribe en stackPath+".asm.json" para que el front lo use directo
     string asmMapPath = stackPath + ".asm.json";
     ofstream json(asmMapPath, ios::trunc);
     if (!json.is_open()) return;
@@ -462,6 +469,9 @@ int GenCodeVisitor::visit(PrintStm* stm) {
         emit(" movl $0, %eax");
     }
     emit(" call printf@PLT");
+    if (entornoFuncion && currentFrame.label != "none") {
+        snapshot("print", stm->line);
+    }
     return 0;
 }
 
@@ -501,6 +511,8 @@ int GenCodeVisitor::visit(Body* b) {
 int GenCodeVisitor::visit(IfStm* stm) {
     currentLine = stm->line;
 
+    if (entornoFuncion && currentFrame.label != "none") snapshot("if", stm->line);
+
     string cval = constEval(stm->condition);
     long long v;
 
@@ -529,6 +541,7 @@ int GenCodeVisitor::visit(IfStm* stm) {
 
 int GenCodeVisitor::visit(WhileStm* stm) {
     currentLine = stm->line;
+    if (entornoFuncion && currentFrame.label != "none") snapshot("while", stm->line);
     int label = labelcont++;
     emit("while_" + to_string(label) + ":");
     stm->condition->accept(this);
@@ -544,11 +557,15 @@ int GenCodeVisitor::visit(ReturnStm* stm) {
     currentLine = stm->line;
     if (stm->e) stm->e->accept(this);
     emit(" jmp .end_" + nombreFuncion);
+    if (entornoFuncion && currentFrame.label != "none") {
+        snapshot("return", stm->line);
+    }
     return 0;
 }
 
 int GenCodeVisitor::visit(ForStm* stm) {
     currentLine = stm->line;
+    if (entornoFuncion && currentFrame.label != "none") snapshot("for", stm->line);
     env.add_level();
     typeEnv.add_level();
     if (stm->init) stm->init->accept(this);
@@ -577,17 +594,21 @@ int GenCodeVisitor::visit(FunDec* f) {
     typeEnv.add_level();
     offset = -8;
     nombreFuncion = f->nombre;
-    snapshotCounter = 0;
     currentFrame = Frame{f->nombre, {}};
-    snapshots.clear();
 
     vector<string> argRegs = {"%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"};
     vector<string> argRegsXmm = {"%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5"};
 
-    emit(".globl " + f->nombre);
-    emit(f->nombre + ":");
-    emit(" pushq %rbp");
-    emit(" movq %rsp, %rbp");
+    int funcLine = -1;
+    if (f->cuerpo) {
+        if (!f->cuerpo->declarations.empty()) funcLine = f->cuerpo->declarations.front()->line;
+        else if (!f->cuerpo->StmList.empty()) funcLine = f->cuerpo->StmList.front()->line;
+    }
+    currentLine = funcLine;
+    emit(".globl " + f->nombre, funcLine-1);
+    emit(f->nombre + ":", funcLine-1);
+    emit(" pushq %rbp", funcLine-1);
+    emit(" movq %rsp, %rbp", funcLine-1);
 
     // Preasignar offsets de locales
     int funcOffset = offset;
@@ -612,7 +633,7 @@ int GenCodeVisitor::visit(FunDec* f) {
     int align16 = totalStack % 16;
     if (align16 != 0) totalStack += (16 - align16);
     if (totalStack > 0) {
-        emit(" subq $" + to_string(totalStack) + ", %rsp");
+        emit(" subq $" + to_string(totalStack) + ", %rsp", funcLine-1);
         offset = -8 - totalStack;
     }
 
@@ -625,7 +646,7 @@ int GenCodeVisitor::visit(FunDec* f) {
         int destOff = env.lookup(f->Pnombres[i]);
         if (isFloatType(ptype)) {
             if (floatIdx < (int)argRegsXmm.size())
-                emit(" movss " + argRegsXmm[floatIdx] + ", " + to_string(destOff) + "(%rbp)");
+                emit(" movss " + argRegsXmm[floatIdx] + ", " + to_string(destOff) + "(%rbp)", funcLine-1);
             floatIdx++;
         } else {
             string movInstr = movStore(ptype);
@@ -637,13 +658,13 @@ int GenCodeVisitor::visit(FunDec* f) {
             else
                 srcReg = (intIdx < (int)argRegs.size()) ? argRegs[intIdx] : "%rdi";
 
-            emit(movInstr + srcReg + ", " + to_string(destOff) + "(%rbp)");
+            emit(movInstr + srcReg + ", " + to_string(destOff) + "(%rbp)", funcLine-1);
             intIdx++;
         }
     }
 
-    // snapshot inicial
-    snapshot(f->nombre + " params", 0);
+    // snapshot inicial: prolog (linea -1 y/o justo antes de la declaracion) para cualquier funcion
+    snapshot("prolog", funcLine > 0 ? funcLine - 1 : -1);
 
     if (f->cuerpo) f->cuerpo->accept(this);
 
@@ -693,7 +714,7 @@ void GenCodeVisitor::snapshot(const string& label, int line) {
         vars.push_back(fv);
     }
     sort(vars.begin(), vars.end(), [](const FrameVar& a, const FrameVar& b){ return a.offset > b.offset; });
-    snapshots.push_back(Snapshot{label, vars, line, snapshotCounter});
+    snapshots.push_back(Snapshot{label, vars, line, snapshotCounter, nombreFuncion.empty() ? "global" : nombreFuncion});
     snapshotCounter++;
 }
 

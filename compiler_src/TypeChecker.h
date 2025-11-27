@@ -1,5 +1,6 @@
 #ifndef TYPECHECKER_H
 #define TYPECHECKER_H
+// visitor de tipos que valida el ast antes de generar codigo
 
 #include <unordered_map>
 #include <string>

@@ -5,10 +5,10 @@ from .compiler_service import CompilerService
 
 app = FastAPI(title="C Compiler Backend")
 
-# Configurar CORS (Para que tu Frontend pueda llamar a este Backend)
+# Configurar CORS 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # En producción pon el dominio de tu frontend
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

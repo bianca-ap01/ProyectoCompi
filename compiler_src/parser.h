@@ -1,5 +1,6 @@
 #ifndef PARSER_H
 #define PARSER_H
+// parser descendente recursivo sobre tokens del scanner
 
 #include "scanner.h"
 #include "ast.h"

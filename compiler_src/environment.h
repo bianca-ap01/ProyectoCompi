@@ -8,6 +8,7 @@
 
 using namespace std;
 
+// entorno en forma de pila para scopes y busquedas
 
 template <typename T>
 class Environment {

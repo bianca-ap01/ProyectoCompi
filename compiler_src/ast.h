@@ -85,7 +85,6 @@ public:
     int accept(Visitor* visitor) override;
     IdExp(string v);
     ~IdExp();
-    // --- NUEVO ---
     Type* accept(TypeVisitor* visitor);
 };
 
@@ -97,7 +96,6 @@ public:
     ~BoolExp(){};
 
     int accept(Visitor* visitor) override;
-    // --- NUEVO ---
     Type* accept(TypeVisitor* visitor) override;
 };
 
@@ -106,7 +104,6 @@ public:
     int line = 0;
     virtual int accept(Visitor* visitor) = 0;
     virtual ~Stm() = 0;
-    // --- NUEVO ---
     virtual void accept(TypeVisitor* visitor) = 0;
 };
 
@@ -115,12 +112,11 @@ public:
     TypeKind kind;
     string type;
     list<string> vars;
-    vector<Exp*> initializers; // opcional: para soportar int x = 1;
+    vector<Exp*> initializers; // para soportar int x = 1;
     int line = 0;
     VarDec(int line = 0);
     int accept(Visitor* visitor);
     ~VarDec();
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor);
 };
 
@@ -131,7 +127,6 @@ public:
     int accept(Visitor* visitor);
     Body();
     ~Body();
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor);
 };
 
@@ -144,7 +139,6 @@ public:
     IfStm(Exp* condition, Body* then, Body* els, int line = 0);
     int accept(Visitor* visitor) override;
     ~IfStm(){};
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor) override;
 };
 
@@ -156,7 +150,6 @@ public:
     WhileStm(Exp* condition, Body* b, int line = 0);
     int accept(Visitor* visitor) override;
     ~WhileStm(){};
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor) override;
 };
 
@@ -170,7 +163,6 @@ public:
     ForStm(Stm* init, Exp* condition, Stm* step, Body* b, int line = 0);
     int accept(Visitor* visitor) override;
     ~ForStm() {}; 
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor) override;
 };
 
@@ -182,7 +174,6 @@ public:
     AssignStm(string, Exp*, int line = 0);
     ~AssignStm();
     int accept(Visitor* visitor) override;
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor) override;
 };
 
@@ -193,7 +184,6 @@ public:
     PrintStm(Exp*, int line = 0);
     ~PrintStm();
     int accept(Visitor* visitor) override;
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor) override;
 };
 
@@ -205,7 +195,6 @@ public:
     ReturnStm(Exp* e, int line = 0);
     ~ReturnStm(){};
     int accept(Visitor* visitor) override;
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor) override;
 };
 
@@ -219,7 +208,6 @@ public:
     FcallExp();
     FcallExp(const string& nombre, const vector<Exp*>& args);
     ~FcallExp(){};
-    // --- NUEVO ---
     Type* accept(TypeVisitor* visitor) override;
 };
 
@@ -235,7 +223,6 @@ public:
     int accept(Visitor* visitor);
     FunDec();
     ~FunDec();
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor);
 };
 
@@ -247,7 +234,6 @@ public:
     Program();
     ~Program();
     int accept(Visitor* visitor);
-    // --- NUEVO ---
     void accept(TypeVisitor* visitor);
 };
 
@@ -261,7 +247,6 @@ public:
     TernaryExp(Exp* condition, Exp* thenExp, Exp* elseExp);
     int accept(Visitor* visitor) override;
     ~TernaryExp(){};
-    // --- NUEVO ---
     Type* accept(TypeVisitor* visitor);
 };
 

@@ -1,5 +1,6 @@
 #ifndef SCANNER_H
 #define SCANNER_H
+// scanner lexico basico para c reducido
 
 #include <string>
 #include "token.h"

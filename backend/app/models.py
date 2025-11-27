@@ -15,6 +15,7 @@ class StackFrame(BaseModel):
     sp: Optional[int] = None        # opcional: dirección/offset del stack pointer
     line: Optional[int] = None      # línea del código fuente asociada al snapshot
     idx: Optional[int] = None       # índice global del snapshot
+    func: Optional[str] = None      # nombre de la función a la que pertenece
 
 
 class SourceCode(BaseModel):
@@ -24,7 +25,6 @@ class SourceCode(BaseModel):
 class CompilationResponse(BaseModel):
     success: bool
     output: str                        # Salida del programa (printf)
-    image_b64: Optional[str] = None    # Imagen en base64 para el <img> del frontend
     logs: str                          # Logs de compilación (errores gcc, etc)
     stack: List[StackFrame] = []       # Representación estructurada del stack/memoria
     asm: Optional[str] = None          # Código ensamblador generado (.s)

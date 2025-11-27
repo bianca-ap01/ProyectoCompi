@@ -9,3 +9,10 @@ a.out
 *.s
 *.o
 temp/
+frontend/.next/
+frontend/package-lock.json
+*.asm.json
+*.gch
+compiler_src/inputs/*_stack.json*
+compiler_src/inputs/*.tokens.txt
+.DS_Store
