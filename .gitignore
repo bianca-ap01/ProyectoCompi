@@ -10,6 +10,8 @@ a.out
 *.o
 temp/
 frontend/.next/
+frontend/.next/
+
 frontend/package-lock.json
 *.asm.json
 *.gch
