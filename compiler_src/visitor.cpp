@@ -414,10 +414,9 @@ int GenCodeVisitor::visit(PrintStm* stm) {
     else if (t == "bool") fmt = "print_bool";
 
     if (t == "float") {
-        emit(" movaps %xmm0, %xmm1");
+        emit(" cvtss2sd %xmm0, %xmm0"); // promocionar a double para printf
         emit(" movl $1, %eax");
         emit(" leaq " + fmt + "(%rip), %rdi");
-        emit(" movaps %xmm1, %xmm0");
     } else {
         emit(" movq %rax, %rsi");
         emit(" leaq " + fmt + "(%rip), %rdi");

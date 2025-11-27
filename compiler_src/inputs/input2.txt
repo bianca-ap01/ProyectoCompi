@@ -1,16 +1,16 @@
 #include <stdio.h>
 
 int main() {
-    int x;
-    int y;
+    float x;
+    float y;
 
-    x = 5;
-    y = 10;
+    x = 5.2;
+    y = 10.3;
 
     if (x > y) {
-        printf(" %d\n", x);
+        printf(" %lf\n", x);
     } else {
-        printf(" %d\n", y);
+        printf(" %lf\n", y);
     }
 
     return 0;
