@@ -135,6 +135,8 @@ void TypeChecker::visit(VarDec* v) {
                 exit(0);
             }
             env.add_var(id, new Type(inferred->ttype));
+            // Anotar el tipo inferido en el AST para uso posterior (gencode)
+            v->type = Type::type_to_string(inferred->ttype);
             ++indice;
         }
     } else {
@@ -319,17 +321,17 @@ Type* TypeChecker::visit(BinaryExp* e) {
         case MUL_OP: 
         case DIV_OP: 
         case POW_OP:
-            if (leftIsFloat || rightIsFloat) return floatType;
-            if (leftIsLong && rightIsLong) return longType;
-            if ((leftIsLong && rightIsInt) || (leftIsInt && rightIsLong)) return longType;
-            if (leftIsInt && rightIsInt) return intType;
-            if (leftIsUInt && rightIsUInt) return uIntType;
-            if ((leftIsInt && rightIsUInt) || (leftIsUInt && rightIsInt)) return intType; // mezcla -> int
-            if ((leftIsLong && rightIsUInt) || (leftIsUInt && rightIsLong)) return longType;
+            if (leftIsFloat || rightIsFloat) { e->inferredType = e->resultType = floatType->ttype; return floatType; }
+            if (leftIsLong && rightIsLong)   { e->inferredType = e->resultType = longType->ttype;  return longType; }
+            if ((leftIsLong && rightIsInt) || (leftIsInt && rightIsLong)) { e->inferredType = e->resultType = longType->ttype; return longType; }
+            if (leftIsInt && rightIsInt)     { e->inferredType = e->resultType = intType->ttype;   return intType; }
+            if (leftIsUInt && rightIsUInt)   { e->inferredType = e->resultType = uIntType->ttype;  return uIntType; }
+            if ((leftIsInt && rightIsUInt) || (leftIsUInt && rightIsInt)) { e->inferredType = e->resultType = intType->ttype; return intType; } // mezcla -> int
+            if ((leftIsLong && rightIsUInt) || (leftIsUInt && rightIsLong)) { e->inferredType = e->resultType = longType->ttype; return longType; }
             cerr << "Error: operacion aritmetica requiere tipos numericos compatibles." << endl;
             exit(0);
         case LE_OP:
-            if (leftIsFloat || rightIsFloat) return boolType;
+            if (leftIsFloat || rightIsFloat) { e->inferredType = boolType->ttype; return boolType; }
             if ((leftIsInt && rightIsInt) ||
                 (leftIsLong && rightIsLong) ||
                 (leftIsLong && rightIsInt) ||
@@ -338,8 +340,10 @@ Type* TypeChecker::visit(BinaryExp* e) {
                 (leftIsInt && rightIsUInt) ||
                 (leftIsUInt && rightIsInt) ||
                 (leftIsLong && rightIsUInt) ||
-                (leftIsUInt && rightIsLong))
+                (leftIsUInt && rightIsLong)) {
+                e->inferredType = e->resultType = boolType->ttype;
                 return boolType;
+            }
             cerr << "Error: comparacion requiere operandos numericos compatibles." << endl;
             exit(0);
         default:
@@ -349,19 +353,26 @@ Type* TypeChecker::visit(BinaryExp* e) {
 }
 
 Type* TypeChecker::visit(NumberExp* e) {
-    if (e->isFloat) return floatType;
-    if (e->isUnsigned) return uIntType;
-    return e->isLong ? longType : intType;
+    Type* t = nullptr;
+    if (e->isFloat) t = floatType;
+    else if (e->isUnsigned) t = uIntType;
+    else t = e->isLong ? longType : intType;
+    e->inferredType = t->ttype;
+    e->literalType = t->ttype;
+    return t;
 }
 
-Type* TypeChecker::visit(BoolExp* e) { return boolType; }
+Type* TypeChecker::visit(BoolExp* e) { e->inferredType = boolType->ttype; return boolType; }
 
 Type* TypeChecker::visit(IdExp* e) {
     if (!env.check(e->value)) {
         cerr << "Error: variable '" << e->value << "' no declarada." << endl;
         exit(0);
     }
-    return env.lookup(e->value);
+    Type* t = env.lookup(e->value);
+    e->inferredType = t->ttype;
+    e->resolvedType = t->ttype;
+    return t;
 }
 
 Type* TypeChecker::visit(FcallExp* e) {
@@ -384,6 +395,8 @@ Type* TypeChecker::visit(FcallExp* e) {
         }
     }
 
+    e->inferredType = it->second.returnType->ttype;
+    e->returnType = it->second.returnType->ttype;
     return it->second.returnType;
 }
 
@@ -402,5 +415,7 @@ Type* TypeChecker::visit(TernaryExp* e) {
         exit(0);
     }
 
+    e->inferredType = thenType->ttype;
+    e->resultType = thenType->ttype;
     return thenType;
 }

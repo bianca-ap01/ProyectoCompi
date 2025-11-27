@@ -87,8 +87,10 @@ public:
     GenCodeVisitor(std::ostream& out, const std::string& stackPath = "") : out(out), stackPath(stackPath) {}
 
     int generar(Program* program);
-    Environment<int> env;
-    unordered_map<string, bool> memoriaGlobal;  // globals: nombre → bool
+    Environment<int> env;                       // offsets
+    Environment<std::string> typeEnv;           // tipos (locals)
+    unordered_map<string, bool> memoriaGlobal;  // globals: nombre -> bool
+    unordered_map<string, std::string> globalTypes;
     int    offset        = -8;
     int    labelcont     = 0;
     bool   entornoFuncion = false;
@@ -125,7 +127,7 @@ public:
 
 private:
     // Recorrido previo para asignar offsets a todas las variables locales (incluidas anidadas)
-    void preAsignarOffsets(Body* body);
+    int preAsignarOffsets(Body* body, int startOffset);
     void saveStack();
     void saveAsmMap();
     void emit(const std::string& instr, int lineOverride = -1);
@@ -134,3 +136,11 @@ private:
 };
 
 #endif // VISITOR_H
+
+
+
+
+
+
+
+

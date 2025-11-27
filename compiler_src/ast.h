@@ -35,6 +35,8 @@ enum TypeKind {
 // Clase abstracta Exp
 class Exp {
 public:
+    Type::TType inferredType = Type::NOTYPE; // tipo inferido tras el typecheck
+public:
     virtual int  accept(Visitor* visitor) = 0;
     virtual ~Exp() = 0;  // Destructor puro → clase abstracta
     static string binopToChar(BinaryOp op);  // Conversión operador → string
@@ -49,6 +51,7 @@ public:
     Exp* left;
     Exp* right;
     BinaryOp op;
+    Type::TType resultType = Type::NOTYPE;
     int accept(Visitor* visitor) override;
     BinaryExp(Exp* l, Exp* r, BinaryOp op);
     ~BinaryExp();
@@ -64,6 +67,7 @@ public:
     bool isFloat;
     bool isLong;
     bool isUnsigned;
+    Type::TType literalType = Type::NOTYPE;
     int accept(Visitor* visitor) override;
     NumberExp(long long v, double fv, bool isFloatLiteral, bool isLongLiteral, bool isUnsignedLiteral);
     ~NumberExp();
@@ -75,6 +79,7 @@ public:
 class IdExp : public Exp {
 public:
     string value;
+    Type::TType resolvedType = Type::NOTYPE;
     int accept(Visitor* visitor) override;
     IdExp(string v);
     ~IdExp();
@@ -206,6 +211,7 @@ class FcallExp: public Exp {
 public:
     string nombre;
     vector<Exp*> argumentos;
+    Type::TType returnType = Type::NOTYPE;
 
     int accept(Visitor* visitor) override;
     FcallExp();
@@ -248,6 +254,7 @@ public:
     Exp* condition;
     Exp* thenExp;
     Exp* elseExp;
+    Type::TType resultType = Type::NOTYPE;
 
     TernaryExp(Exp* condition, Exp* thenExp, Exp* elseExp);
     int accept(Visitor* visitor) override;

@@ -43,6 +43,20 @@ public:
         if (s == "auto") return AUTO;
         return NOTYPE;
     }
+
+    static std::string type_to_string(TType t) {
+        switch (t) {
+            case VOID:  return "void";
+            case INT:   return "int";
+            case FLOAT: return "float";
+            case UINT:  return "unsigned int";
+            case LONG:  return "long";
+            case BOOL:  return "bool";
+            case AUTO:  return "auto";
+            case NOTYPE:
+            default:    return "notype";
+        }
+    }
 };
 
 #endif // SEMANTIC_TYPES_H
