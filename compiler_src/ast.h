@@ -37,6 +37,8 @@ class Exp {
 public:
     Type::TType inferredType = Type::NOTYPE; // tipo inferido tras el typecheck
 public:
+    int cont;
+    int valor;
     virtual int  accept(Visitor* visitor) = 0;
     virtual ~Exp() = 0;  // Destructor puro → clase abstracta
     static string binopToChar(BinaryOp op);  // Conversión operador → string

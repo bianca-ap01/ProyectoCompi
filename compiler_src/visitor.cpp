@@ -129,7 +129,7 @@ void GenCodeVisitor::saveStack() {
         for (size_t v = 0; v < fr.vars.size(); ++v) {
             const auto& var = fr.vars[v];
             json << "{\"name\":\"" << var.name << "\",\"value\":\"" << var.value << "\","
-                 << "\"offset\":" << var.offset << ",\"type\":\"" << var.type << "\"}";
+                << "\"offset\":" << var.offset << ",\"type\":\"" << var.type << "\"}";
             if (v + 1 < fr.vars.size()) json << ",";
         }
         json << "]}";
@@ -302,7 +302,46 @@ int GenCodeVisitor::visit(IdExp* exp) {
 }
 
 int GenCodeVisitor::visit(BinaryExp* exp) {
+    std::string lstr = constEval(exp->left);
+    std::string rstr = constEval(exp->right);
+    long long lval, rval;
+    if (tryParseLong(lstr, lval) && tryParseLong(rstr, rval)) {
+        long long res = 0;
+        bool ok = true;
+        switch (exp->op) {
+            case PLUS_OP:  res = lval + rval; break;
+            case MINUS_OP: res = lval - rval; break;
+            case MUL_OP:   res = lval * rval; break;
+            case DIV_OP:   if (rval == 0) ok = false; else res = lval / rval; break;
+            case POW_OP:
+                if (rval < 0) ok = false;
+                else {
+                    res = 1;
+                    for (long long i = 0; i < rval; ++i) res *= lval;
+                }
+                break;
+            case LE_OP:    res = (lval < rval) ? 1 : 0; break;
+            default: ok = false; break;
+        }
+        if (ok) {
+            // marcar la expresión como constante evaluada
+            exp->cont = 1;
+            exp->valor = static_cast<int>(res);
+            // emitir valor inmediato (usar movl si cabe en 32 bits)
+            if (res >= INT32_MIN && res <= INT32_MAX) {
+                emit(" movl $" + std::to_string(res) + ", %eax");
+            } else {
+                emit(" movq $" + std::to_string(res) + ", %rax");
+            }
+            return 0;
+        }
+    }
+    
+    
     // Evaluar left
+    
+
+
     exp->left->accept(this);
     // Guardar resultado left
     Type::TType lt = exp->left->inferredType;
@@ -460,17 +499,28 @@ int GenCodeVisitor::visit(Body* b) {
 }
 
 int GenCodeVisitor::visit(IfStm* stm) {
-    currentLine = stm->line;
-    int label = labelcont++;
-    stm->condition->accept(this);
-    emit(" cmpq $0, %rax");
-    emit(" je else_" + std::to_string(label));
-    stm->then->accept(this);
-    emit(" jmp endif_" + std::to_string(label));
-    emit("else_" + std::to_string(label) + ":");
-    if (stm->els) stm->els->accept(this);
-    emit("endif_" + std::to_string(label) + ":");
+    if (stm->condition->cont == 1){
+        if (stm->condition->valor == 1){ // es true
+            if (stm->then) stm->then->accept(this);
+        }
+        else{
+            if (stm->els) stm->els->accept(this);
+        }
+    }
+    else{
+        currentLine = stm->line;
+        int label = labelcont++;
+        stm->condition->accept(this);
+        emit(" cmpq $0, %rax");
+        emit(" je else_" + std::to_string(label));
+        stm->then->accept(this);
+        emit(" jmp endif_" + std::to_string(label));
+        emit("else_" + std::to_string(label) + ":");
+        if (stm->els) stm->els->accept(this);
+        emit("endif_" + std::to_string(label) + ":");
+    }
     return 0;
+    
 }
 
 int GenCodeVisitor::visit(WhileStm* stm) {
