@@ -99,16 +99,16 @@ int ForStm::accept(Visitor* visitor)    { return visitor->visit(this); }
 //   GenCodeVisitor
 // ======================================================================
 
-int GenCodeVisitor::generar(Program* program) {
-    program->accept(this);
-    saveStack();
-    saveAsmMap();
+int GenCodeVisitor::generar(Program* program) { // Funcion auxiliar inicial
+    program->accept(this); // generar codigo
+    saveStack(); // guardar capturas de stack en json
+    saveAsmMap(); // guardar x86 por linea en json
     return 0;
 }
 
-void GenCodeVisitor::emit(const string& instr, int lineOverride) {
-    int line = (lineOverride >= 0) ? lineOverride : currentLine;
-    out << instr << endl;
+void GenCodeVisitor::emit(const string& instr, int lineOverride) { // escribe asm
+    int line = (lineOverride >= 0) ? lineOverride : currentLine; // linea actual
+    out << instr << endl; // el out de siempre
     // guardamos tambien prologo (-1) para que aparezca en front
     if (line >= -1) {
         asmByLine[line].push_back(instr);
@@ -123,7 +123,7 @@ void GenCodeVisitor::saveStack() {
         snapshots.push_back(Snapshot{"globals", globalFrame.vars, 0, snapshotCounter++, "global"});
     }
 
-    ofstream json(stackPath, ios::trunc);
+    ofstream json(stackPath, ios::trunc); // sobrescribe
     if (!json.is_open()) return;
 
     json << "[";
@@ -167,9 +167,11 @@ void GenCodeVisitor::saveAsmMap() {
 
 // Pre-pase: asignar offsets a todas las variables locales
 int GenCodeVisitor::preAsignarOffsets(Body* body, int startOffset) {
-    int localOffset = startOffset;
+    int localOffset = startOffset; // empieza en -8
+    // declaraciones primero: asignar solo variables usadas (eliminacion de variables muertas)
     for (auto dec : body->declarations) {
         for (const auto& var : dec->vars) {
+            if (!usedVars.count(var)) continue;
             int sz = sizeOfType(dec->type);
             int align = (sz == 8) ? 8 : 4;
             int misalign = (-localOffset) % align;
@@ -179,13 +181,15 @@ int GenCodeVisitor::preAsignarOffsets(Body* body, int startOffset) {
             localOffset -= sz;
         }
     }
+    // luego bodys de sentencias
+    // llama a preAsignarOffsets recursivamente para If, While, For, para almacenar variables locales anidadas
     for (auto s : body->StmList) {
-        if (auto ifs = dynamic_cast<IfStm*>(s)) {
-            if (ifs->then) localOffset = preAsignarOffsets(ifs->then, localOffset);
-            if (ifs->els)  localOffset = preAsignarOffsets(ifs->els,  localOffset);
-        } else if (auto wh = dynamic_cast<WhileStm*>(s)) {
+        if (auto ifs = dynamic_cast<IfStm*>(s)) { // dynamic cast para ver si es IfStm
+            if (ifs->then) localOffset = preAsignarOffsets(ifs->then, localOffset); // cuerpo then
+            if (ifs->els)  localOffset = preAsignarOffsets(ifs->els,  localOffset); // cuerpo else
+        } else if (auto wh = dynamic_cast<WhileStm*>(s)) { // WhileStm
             if (wh->b) localOffset = preAsignarOffsets(wh->b, localOffset);
-        } else if (auto fs = dynamic_cast<ForStm*>(s)) {
+        } else if (auto fs = dynamic_cast<ForStm*>(s)) { // ForStm
             if (fs->b) localOffset = preAsignarOffsets(fs->b, localOffset);
         }
     }
@@ -204,18 +208,18 @@ int GenCodeVisitor::visit(Program* program) {
     emit("print_bool: .string \"%d \\n\"");
 
     // Declaraciones globales
-    for (auto dec : program->vdlist) {
+    for (auto dec : program->vdlist) { // se visitan las declaraciones globales
         dec->accept(this);
     }
-    for (auto it = memoriaGlobal.begin(); it != memoriaGlobal.end(); ++it) {
+    for (auto it = memoriaGlobal.begin(); it != memoriaGlobal.end(); ++it) { // itera sobre variables globales
         emit(it->first + ": .quad 0");
     }
 
-    emit(".text");
-    for (auto dec : program->fdlist) {
+    emit(".text"); // Empieza el coso
+    for (auto dec : program->fdlist) { // funciones
         dec->accept(this);
     }
-    emit(".section .note.GNU-stack,\"\",@progbits");
+    emit(".section .note.GNU-stack,\"\",@progbits"); // final asm
     env.remove_level();
     typeEnv.remove_level();
     return 0;
@@ -224,18 +228,21 @@ int GenCodeVisitor::visit(Program* program) {
 int GenCodeVisitor::visit(VarDec* vd) {
     currentLine = vd->line;
     for (auto& var : vd->vars) {
-        if (!entornoFuncion) {
+        // para Variables globales
+        if (!entornoFuncion) { // si no estamos en funcion, es global
             memoriaGlobal[var] = true;
             globalTypes[var] = vd->type;
-            FrameVar fv{var, 0, vd->type, "?"};
-            globalFrame.vars.push_back(fv);
+            FrameVar fv{var, 0, vd->type, "?"}; // offset 0 para globales, valor desconocido "?"
+            globalFrame.vars.push_back(fv); // agrega a globalFrame
+        
+        // para Variables locales
         } else {
-            if (env.check(var) && currentFrame.label != "none") {
-                int off = env.lookup(var);
+            if (env.check(var) && currentFrame.label != "none") { // verifica que no exista ya
+                int off = env.lookup(var); // busca offset
                 FrameVar fv{var, off, vd->type, "?"};
                 currentFrame.vars.push_back(fv);
                 currentVars[var] = fv;
-                snapshot("decl " + var, vd->line);
+                snapshot("decl " + var, vd->line); // guarda snapshot de declaracion
             }
         }
     }
@@ -254,23 +261,26 @@ static string movStore(const string& t) {
     return " movq ";
 }
 
-int GenCodeVisitor::visit(NumberExp* exp) {
-    string t = Type::type_to_string(exp->literalType);
+int GenCodeVisitor::visit(NumberExp* exp) { // para definiciones como int x = 42; float y = 3.14;
+    string t = Type::type_to_string(exp->literalType); // obtener tipo desde literalType
+    // FLOAT
     if (isFloatType(t)) {
-        union { float f; uint32_t u; } fb;
-        fb.f = static_cast<float>(exp->fvalue);
-        emit(" movl $" + to_string(fb.u) + ", %eax");
-        emit(" movd %eax, %xmm0");
+        union { float f; uint32_t u; } fb; // crea fb ( float y su representacion binaria)
+        fb.f = static_cast<float>(exp->fvalue); // asigna fvalue a fb.f
+        emit(" movl $" + to_string(fb.u) + ", %eax"); // mueve la representacion binaria a eax
+        emit(" movd %eax, %xmm0"); // mueve eax a xmm0 como float
         return 0;
     }
+    // BOOL (forma literal numerico, 0/1)
     if (t == "bool") {
-        emit(" movb $" + to_string(exp->value) + ", %al");
-        emit(" movzbq %al, %rax");
+        emit(" movb $" + to_string(exp->value) + ", %al"); // carga el valor en al (que tiene 1 byte)
+        emit(" movzbq %al, %rax"); // extiende 0 a 64 bits y lo guarda en rax
         return 0;
     }
-    if (is32Bit(t)) {
+    // INT, LONG, UINT
+    if (is32Bit(t)) { // 4 bytes
         emit(" movl $" + to_string(exp->value) + ", %eax");
-    } else {
+    } else { // 8 bytes
         emit(" movq $" + to_string(exp->value) + ", %rax");
     }
     return 0;
@@ -309,6 +319,22 @@ int GenCodeVisitor::visit(IdExp* exp) {
 }
 
 int GenCodeVisitor::visit(BinaryExp* exp) {
+    // Intento de plegado general: si constEval devuelve un numero, usarlo.
+    string vstr = constEval(exp);
+    long long v;
+    if (tryParseLong(vstr, v)) {
+        exp->cont = 1;
+        exp->valor = static_cast<int>(v);
+        if (v >= INT32_MIN && v <= INT32_MAX) {
+            emit(" movl $" + to_string(v) + ", %eax");
+        } else {
+            emit(" movq $" + to_string(v) + ", %rax");
+        }
+        return 0;
+    }
+
+    // Solo plegamos cuando ambos lados son literales (NumberExp/BoolExp) para
+    // evitar usar valores de runtime almacenados en currentVars.
     bool leftLit  = dynamic_cast<NumberExp*>(exp->left) || dynamic_cast<BoolExp*>(exp->left);
     bool rightLit = dynamic_cast<NumberExp*>(exp->right) || dynamic_cast<BoolExp*>(exp->right);
     if (leftLit && rightLit) {
@@ -628,7 +654,16 @@ int GenCodeVisitor::visit(FunDec* f) {
         currentVars[fv.name] = fv;
         funcOffset -= sz;
     }
+    usedVars.clear();
     if (f->cuerpo) {
+        markUsedVarsInBody(f->cuerpo);
+
+        for (auto &dec : f->cuerpo->declarations) {
+            for (auto init : dec->initializers) {
+                if (init) markUsedVars(init);
+            }
+        }
+
         funcOffset = preAsignarOffsets(f->cuerpo, funcOffset);
     }
     int totalStack = -funcOffset - 8;
@@ -728,6 +763,7 @@ string GenCodeVisitor::constEval(Exp* e) {
         return to_string(b->valor);
     }
     if (auto id = dynamic_cast<IdExp*>(e)) {
+        // Evaluar IdExp si tenemos un valor conocido en currentVars (propagacion de constantes simple)
         auto it = currentVars.find(id->value);
         if (it != currentVars.end()) return it->second.value;
         return "?";
@@ -752,4 +788,56 @@ string GenCodeVisitor::constEval(Exp* e) {
     }
     if (dynamic_cast<FcallExp*>(e)) return "call";
     return "?";
+}
+
+void GenCodeVisitor::markUsedVars(Exp* e) {
+    if (auto id = dynamic_cast<IdExp*>(e)) {
+        usedVars.insert(id->value);
+    } else if (auto bin = dynamic_cast<BinaryExp*>(e)) {
+        markUsedVars(bin->left);
+        markUsedVars(bin->right);
+    } else if (auto tern = dynamic_cast<TernaryExp*>(e)) {
+        markUsedVars(tern->condition);
+        markUsedVars(tern->thenExp);
+        markUsedVars(tern->elseExp);
+    } else if (auto fcall = dynamic_cast<FcallExp*>(e)) {
+        for (auto arg : fcall->argumentos)
+            markUsedVars(arg);
+    }
+}
+
+void GenCodeVisitor::markUsedVarsInBody(Body* b) {
+    for (auto stm : b->StmList) {
+        if (auto assign = dynamic_cast<AssignStm*>(stm)) {
+            markUsedVars(assign->e);
+        } else if (auto print = dynamic_cast<PrintStm*>(stm)) {
+            markUsedVars(print->e);
+        } else if (auto ifs = dynamic_cast<IfStm*>(stm)) {
+            markUsedVars(ifs->condition);
+            if (ifs->then) markUsedVarsInBody(ifs->then);
+            if (ifs->els) markUsedVarsInBody(ifs->els);
+        } else if (auto wh = dynamic_cast<WhileStm*>(stm)) {
+            markUsedVars(wh->condition);
+            if (wh->b) markUsedVarsInBody(wh->b);
+        } else if (auto ret = dynamic_cast<ReturnStm*>(stm)) {
+            if (ret->e) markUsedVars(ret->e);
+        } else if (auto fs = dynamic_cast<ForStm*>(stm)) {
+            if (fs->condition) markUsedVars(fs->condition);
+            // fs->step es una Stm* (p.ej. AssignStm). manejarlo según su tipo:
+            if (fs->step) {
+                if (auto s_assign = dynamic_cast<AssignStm*>(fs->step)) {
+                    markUsedVars(s_assign->e);
+                } else if (auto s_print = dynamic_cast<PrintStm*>(fs->step)) {
+                    markUsedVars(s_print->e);
+                } else if (auto s_ret = dynamic_cast<ReturnStm*>(fs->step)) {
+                    if (s_ret->e) markUsedVars(s_ret->e);
+                } else if (auto s_if = dynamic_cast<IfStm*>(fs->step)) {
+                    markUsedVars(s_if->condition);
+                    if (s_if->then) markUsedVarsInBody(s_if->then);
+                    if (s_if->els) markUsedVarsInBody(s_if->els);
+                } // añadir más casos si tu lenguaje permite otros tipos de step
+            }
+            if (fs->b) markUsedVarsInBody(fs->b);
+        }
+    }
 }

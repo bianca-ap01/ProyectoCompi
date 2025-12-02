@@ -1,1 +1,0 @@
-{"5":[" movl $-5, %eax"," movl %eax, -8(%rbp)"],"8":[" movl $0, %eax"," jmp .end_main",".end_main:","leave","ret",".section .note.GNU-stack,\"\",@progbits"]}
