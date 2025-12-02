@@ -170,13 +170,17 @@ int GenCodeVisitor::preAsignarOffsets(Body* body, int startOffset) {
     int localOffset = startOffset;
     for (auto dec : body->declarations) {
         for (const auto& var : dec->vars) {
-            int sz = sizeOfType(dec->type);
-            int align = (sz == 8) ? 8 : 4;
-            int misalign = (-localOffset) % align;
-            if (misalign != 0) localOffset -= (align - misalign);
-            env.add_var(var, localOffset);
-            typeEnv.add_var(var, dec->type);
+            if (usedVars.count(var)){
+                int sz = sizeOfType(dec->type);
+                int align = (sz == 8) ? 8 : 4;
+                localOffset -= sz;
+                int misalign = (-localOffset) % align;
+                if (misalign != 0) localOffset -= (align - misalign);
+                env.add_var(var, localOffset);
+                typeEnv.add_var(var, dec->type);
             localOffset -= sz;
+            }
+            
         }
     }
     for (auto s : body->StmList) {
@@ -309,6 +313,19 @@ int GenCodeVisitor::visit(IdExp* exp) {
 }
 
 int GenCodeVisitor::visit(BinaryExp* exp) {
+    string vstr = constEval(exp);
+    long long v;
+    if (tryParseLong(vstr, v)) {
+        exp->cont = 1;
+        exp->valor = static_cast<int>(v);
+        if (v >= INT32_MIN && v <= INT32_MAX) {
+            emit(" movl $" + to_string(v) + ", %eax");
+        } else {
+            emit(" movq $" + to_string(v) + ", %rax");
+        }
+        return 0;
+    }
+
     bool leftLit  = dynamic_cast<NumberExp*>(exp->left) || dynamic_cast<BoolExp*>(exp->left);
     bool rightLit = dynamic_cast<NumberExp*>(exp->right) || dynamic_cast<BoolExp*>(exp->right);
     if (leftLit && rightLit) {
@@ -628,7 +645,16 @@ int GenCodeVisitor::visit(FunDec* f) {
         currentVars[fv.name] = fv;
         funcOffset -= sz;
     }
+    usedVars.clear();
     if (f->cuerpo) {
+        markUsedVarsInBody(f->cuerpo);
+
+        for (auto &dec : f->cuerpo->declarations) {
+            for (auto init : dec->initializers) {
+                if (init) markUsedVars(init);
+            }
+        }
+
         funcOffset = preAsignarOffsets(f->cuerpo, funcOffset);
     }
     int totalStack = -funcOffset - 8;
@@ -752,4 +778,56 @@ string GenCodeVisitor::constEval(Exp* e) {
     }
     if (dynamic_cast<FcallExp*>(e)) return "call";
     return "?";
+}
+
+void GenCodeVisitor::markUsedVars(Exp* e) {
+    if (auto id = dynamic_cast<IdExp*>(e)) {
+        usedVars.insert(id->value);
+    } else if (auto bin = dynamic_cast<BinaryExp*>(e)) {
+        markUsedVars(bin->left);
+        markUsedVars(bin->right);
+    } else if (auto tern = dynamic_cast<TernaryExp*>(e)) {
+        markUsedVars(tern->condition);
+        markUsedVars(tern->thenExp);
+        markUsedVars(tern->elseExp);
+    } else if (auto fcall = dynamic_cast<FcallExp*>(e)) {
+        for (auto arg : fcall->argumentos)
+            markUsedVars(arg);
+    }
+}
+
+void GenCodeVisitor::markUsedVarsInBody(Body* b) {
+    for (auto stm : b->StmList) {
+        if (auto assign = dynamic_cast<AssignStm*>(stm)) {
+            markUsedVars(assign->e);
+        } else if (auto print = dynamic_cast<PrintStm*>(stm)) {
+            markUsedVars(print->e);
+        } else if (auto ifs = dynamic_cast<IfStm*>(stm)) {
+            markUsedVars(ifs->condition);
+            if (ifs->then) markUsedVarsInBody(ifs->then);
+            if (ifs->els) markUsedVarsInBody(ifs->els);
+        } else if (auto wh = dynamic_cast<WhileStm*>(stm)) {
+            markUsedVars(wh->condition);
+            if (wh->b) markUsedVarsInBody(wh->b);
+        } else if (auto ret = dynamic_cast<ReturnStm*>(stm)) {
+            if (ret->e) markUsedVars(ret->e);
+        } else if (auto fs = dynamic_cast<ForStm*>(stm)) {
+            if (fs->condition) markUsedVars(fs->condition);
+            // fs->step es una Stm* (p.ej. AssignStm). manejarlo según su tipo:
+            if (fs->step) {
+                if (auto s_assign = dynamic_cast<AssignStm*>(fs->step)) {
+                    markUsedVars(s_assign->e);
+                } else if (auto s_print = dynamic_cast<PrintStm*>(fs->step)) {
+                    markUsedVars(s_print->e);
+                } else if (auto s_ret = dynamic_cast<ReturnStm*>(fs->step)) {
+                    if (s_ret->e) markUsedVars(s_ret->e);
+                } else if (auto s_if = dynamic_cast<IfStm*>(fs->step)) {
+                    markUsedVars(s_if->condition);
+                    if (s_if->then) markUsedVarsInBody(s_if->then);
+                    if (s_if->els) markUsedVarsInBody(s_if->els);
+                } // añadir más casos si tu lenguaje permite otros tipos de step
+            }
+            if (fs->b) markUsedVarsInBody(fs->b);
+        }
+    }
 }

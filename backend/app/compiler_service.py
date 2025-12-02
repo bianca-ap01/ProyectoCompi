@@ -37,7 +37,7 @@ class CompilerService:
             print("binario del compilador vigente, no se recompila.")
             return
 
-        print("compilando el compilador c++...")
+        print("compilando el compilador c...")
         
         cmd = ["g++"] + sources + ["-o", COMPILER_BIN]
         res = subprocess.run(cmd, capture_output=True, text=True)

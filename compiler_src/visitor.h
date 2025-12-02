@@ -10,6 +10,7 @@
 #include <fstream>
 #include <map>
 #include <algorithm>
+#include <set>
 // Env
 #include "environment.h"
 
@@ -87,6 +88,9 @@ class GenCodeVisitor : public Visitor {
 private:
     ostream& out;
     string stackPath;
+    set<string> usedVars;  
+    void markUsedVars(Exp* e);
+    void markUsedVarsInBody(Body* b);
 
 public:
     GenCodeVisitor(ostream& out, const string& stackPath = "") : out(out), stackPath(stackPath) {}
