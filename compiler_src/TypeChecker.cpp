@@ -260,47 +260,14 @@ void TypeChecker::visit(ReturnStm* stm) {
     }
 }
 
-// ...existing code...
-
 void TypeChecker::visit(IfStm* stm) {
-    // Verificar que la condición sea booleana
-    
     Type* cond = stm->condition->accept(this);
     if (!cond->match(boolType)) {
         cerr << "Error: la condición del if debe ser booleana." << endl;
         exit(0);
     }
-
-    // --- OPTIMIZACIÓN: Si la condición es constante, solo procesar la rama ejecutable ---
-    if (stm->condition->cont == 1) {
-        // La condición fue evaluada en tiempo de compilación
-        if (stm->condition->valor == 1) {
-            // Es true: solo procesar then
-            if (stm->then) stm->then->accept(this);
-        } else {
-            // Es false: solo procesar else (si existe)
-            if (stm->els) stm->els->accept(this);
-        }
-    }
-
-    // --- CAMINO NORMAL: ambas ramas pueden ejecutarse en runtime ---
-    int savedLocals = locales; // guardar estado de variables locales
-
-    // Procesar rama then
-    if (stm->then) {
-        stm->then->accept(this);
-    }
-    int thenLocals = locales;
-
-    // Restaurar estado y procesar rama else
-    locales = savedLocals;
-    if (stm->els) {
-        stm->els->accept(this);
-    }
-    int elseLocals = locales;
-
-    // Tomar el máximo de variables locales de ambas ramas
-    locales = (thenLocals > elseLocals) ? thenLocals : elseLocals;
+    stm->then->accept(this);
+    if (stm->els) stm->els->accept(this);
 }
 
 void TypeChecker::visit(WhileStm* stm) {
